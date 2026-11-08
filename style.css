@@ -1,0 +1,300 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background: #000;
+  color: #e8e8e8;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+#app {
+  position: relative;
+  width: min(960px, 100vw);
+}
+
+#hud {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 4px 12px;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.hud-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 28px;
+}
+
+.hud-block,
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.label {
+  color: #8d8d8d;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+#hp-bar,
+#exp-bar,
+#dash-bar {
+  height: 12px;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  overflow: hidden;
+}
+
+#hp-bar {
+  width: 148px;
+  border-color: #2f6b3a;
+  background: #102216;
+}
+
+#hp-fill {
+  width: 100%;
+  height: 100%;
+  background: #3ddc6a;
+}
+
+#hp-fill.low {
+  background: #e23b3b;
+}
+
+#hp-text,
+#exp-text,
+#dash-text,
+#level,
+#weapon-name,
+.stat strong {
+  font-variant-numeric: tabular-nums;
+}
+
+#level,
+.stat strong,
+#weapon-name {
+  font-size: 16px;
+  min-width: 2ch;
+}
+
+#weapon-name {
+  color: #f0d78c;
+  font-weight: 600;
+}
+
+#exp-bar {
+  width: 120px;
+  border-color: #6a5a32;
+  background: #1c180f;
+}
+
+#exp-fill {
+  width: 0%;
+  height: 100%;
+  background: #e3c27a;
+}
+
+#dash-icon {
+  width: 12px;
+  height: 12px;
+  background: #243044;
+  border: 1px solid #3d5f86;
+}
+
+#dash-icon.ready {
+  background: #4da3ff;
+  border-color: #d4ebff;
+}
+
+#dash-bar {
+  width: 72px;
+  background: #141c28;
+  border-color: #2c4566;
+}
+
+#dash-fill {
+  width: 100%;
+  height: 100%;
+  background: #2f6fa8;
+}
+
+#dash-fill.ready {
+  background: #4da3ff;
+}
+
+#dash-text {
+  min-width: 4.2ch;
+  color: #b7c7d8;
+  font-size: 12px;
+}
+
+#hint {
+  margin-left: auto;
+  color: #6e6e6e;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#stage {
+  position: relative;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #000;
+  border: 1px solid #1c1c1c;
+}
+
+.modal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 20px;
+  background: rgba(0, 0, 0, 0.78);
+  text-align: center;
+  z-index: 2;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.eyebrow {
+  color: #e3c27a;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 12px;
+}
+
+.modal h1,
+.modal h2 {
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.modal-lead,
+#overlay-stats {
+  max-width: 520px;
+  color: #c8c8c8;
+  line-height: 1.45;
+}
+
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.choice {
+  position: relative;
+  width: 210px;
+  min-height: 148px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 14px 14px;
+  text-align: left;
+  color: #f2f2f2;
+  background: #12110e;
+  border: 1px solid #3c3426;
+  font: inherit;
+  cursor: pointer;
+}
+
+.choice:hover,
+.choice:focus-visible {
+  border-color: #e3c27a;
+  background: #1a1812;
+  outline: none;
+}
+
+.choice-key {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #8d8d8d;
+  font-size: 12px;
+}
+
+.choice-cat {
+  color: #e3c27a;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+}
+
+.choice strong {
+  font-size: 18px;
+}
+
+.choice-desc {
+  color: #bdbdbd;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.choice.stat-upgrade .choice-cat {
+  color: #8ec8ff;
+}
+
+.overlay-hint {
+  margin-top: 6px;
+  color: #9a9a9a;
+  font-size: 13px;
+}
+
+#overlay {
+  z-index: 4;
+}
+
+#upgrade-modal {
+  z-index: 3;
+}
+
+@media (max-width: 860px) {
+  .hud-row {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+
+  #hint {
+    margin-left: 0;
+    width: 100%;
+    white-space: normal;
+  }
+
+  .modal h1,
+  .modal h2 {
+    font-size: 28px;
+  }
+}

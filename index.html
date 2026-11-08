@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Droga Rycerza</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="hud">
+      <div class="hud-row">
+        <div class="hud-block hp-block">
+          <span class="label">HP</span>
+          <div id="hp-bar" aria-label="Punkty życia">
+            <div id="hp-fill"></div>
+          </div>
+          <span id="hp-text">10 / 10</span>
+        </div>
+        <div class="hud-block">
+          <span class="label">Poziom</span>
+          <strong id="level">1</strong>
+        </div>
+        <div class="hud-block exp-block">
+          <span class="label">EXP</span>
+          <div id="exp-bar" aria-label="Doświadczenie">
+            <div id="exp-fill"></div>
+          </div>
+          <span id="exp-text">0 / 34</span>
+        </div>
+        <div class="hud-block">
+          <span class="label">Broń</span>
+          <strong id="weapon-name">—</strong>
+        </div>
+      </div>
+
+      <div class="hud-row">
+        <div class="stat" id="stat-str" title="Siła skaluje obrażenia procentowo">
+          <span class="label">STR</span>
+          <strong id="str-val">10</strong>
+        </div>
+        <div class="stat" id="stat-dex" title="Zręczność skraca odnowienie uniku">
+          <span class="label">DEX</span>
+          <strong id="dex-val">8</strong>
+        </div>
+        <div class="stat" id="stat-spd" title="Szybkość ruchu">
+          <span class="label">SPD</span>
+          <strong id="spd-val">10</strong>
+        </div>
+        <div class="stat" id="stat-int" title="Inteligencja to szansa na krytyk">
+          <span class="label">INT</span>
+          <strong id="int-val">5</strong>
+        </div>
+        <div class="hud-block dash-block">
+          <span class="label">Unik</span>
+          <span id="dash-icon" class="ready" aria-hidden="true"></span>
+          <div id="dash-bar" aria-label="Odnowienie uniku">
+            <div id="dash-fill"></div>
+          </div>
+          <span id="dash-text">Gotów</span>
+        </div>
+        <p id="hint">WASD — ruch. Strzałki — patrzenie. Spacja — unik.</p>
+      </div>
+    </header>
+
+    <div id="stage">
+      <canvas id="game" width="960" height="600"></canvas>
+
+      <div id="weapon-modal" class="modal">
+        <p class="eyebrow">Poziom 1 — Młodość</p>
+        <h2>Wybierz pierwszą broń</h2>
+        <p class="modal-lead">Młody chłopak wyrusza w drogę. Broń zostanie z nim na tę wędrówkę.</p>
+        <div class="choice-row">
+          <button type="button" class="choice" data-weapon="bow">
+            <span class="choice-key">1</span>
+            <span class="choice-cat">Dystans</span>
+            <strong>Łuk</strong>
+            <span class="choice-desc">Szybkie pociski lecą w kierunku, w którym patrzysz.</span>
+          </button>
+          <button type="button" class="choice" data-weapon="fork">
+            <span class="choice-key">2</span>
+            <span class="choice-cat">Pchnięcie</span>
+            <strong>Widły</strong>
+            <span class="choice-desc">Wąski, daleki cios w linii przed bohaterem. Mocno odpycha trafionych.</span>
+          </button>
+          <button type="button" class="choice" data-weapon="club">
+            <span class="choice-key">3</span>
+            <span class="choice-cat">Obszar</span>
+            <strong>Pałka</strong>
+            <span class="choice-desc">Ciężki, wolny zamach. Szeroki stożek i wysokie obrażenia.</span>
+          </button>
+        </div>
+        <p class="overlay-hint">Kliknij broń albo naciśnij 1, 2 lub 3</p>
+      </div>
+
+      <div id="upgrade-modal" class="modal hidden">
+        <p class="eyebrow">Awans</p>
+        <h2>Wybierz ulepszenie</h2>
+        <p id="upgrade-level" class="modal-lead"></p>
+        <div id="upgrade-choices" class="choice-row"></div>
+        <p class="overlay-hint">Jedno z trzech. Kliknij albo naciśnij 1, 2 lub 3</p>
+      </div>
+
+      <div id="overlay" class="modal hidden">
+        <h1>Koniec drogi</h1>
+        <p id="overlay-stats"></p>
+        <p class="overlay-hint">Naciśnij R albo kliknij, aby zacząć od wyboru broni</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
