@@ -1,10 +1,9 @@
 ﻿/**
- * Droga Bohatera — Arena Survival.
+ * Droga Bohatera — Medieval Arena Survival.
  * Czysty JavaScript + Canvas. Bez bibliotek.
  *
- * WASD porusza, strzałki ustawiają jeden z 8 kierunków spojrzenia,
- * spacja robi krótki unik. Broń atakuje sama w stronę spojrzenia.
- * 10-minutowy run z narastającą nawałnicą wrogów, nowymi wrogami i flockingiem.
+ * Proceduralny styl medieval/fantasy, sprite'y postaci i wrogów,
+ * rotująca broń w kierunku celowania, animacje ataków, cząsteczki i screen shake.
  */
 
 const CONFIG = {
@@ -66,7 +65,7 @@ const WEAPON_NAMES = {
 };
 
 const WEAPON_DESCS = {
-  bow: "Strzela precyzyjnymi pociskami w kierunku spojrzenia.",
+  bow: "Precyzyjne strzały w kierunku spojrzenia.",
   fork: "Wąskie pchnięcie o dużych obrażeniach wzdłuż linii.",
   club: "Ciężki, wąski zamach o dużych obrażeniach obszarowych.",
 };
@@ -181,7 +180,7 @@ const UPGRADE_DEFS = [
     category: "Styl walki",
     kind: "weapon",
     title: "Dłuższe widły",
-    description: "Pchnięcie sięga dalej i mocniej odrzuca trafionych.",
+    description: "Pchnięcie sięga dalej i mocniej odpycha trafionych.",
     apply(player) {
       player.forkReach += 0.18;
     },
@@ -251,6 +250,9 @@ const state = {
   enemyBullets: [],
   bolts: [],
   floaters: [],
+  particles: [],
+  dirtPatches: [],
+  grassTufts: [],
   kills: 0,
   level: 1,
   exp: 0,
@@ -262,7 +264,28 @@ const state = {
   spawnTimer: 1.1,
   nextKind: "chaser",
   elapsed: 0,
+  shakeTimer: 0,
+  shakeMagnitude: 0,
 };
+
+function initEnvironment() {
+  state.dirtPatches = [];
+  for (let i = 0; i < 16; i++) {
+    state.dirtPatches.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      rx: 40 + Math.random() * 55,
+      ry: 25 + Math.random() * 40,
+    });
+  }
+  state.grassTufts = [];
+  for (let i = 0; i < 55; i++) {
+    state.grassTufts.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+    });
+  }
+}
 
 function xpRequiredFor(level) {
   return Math.round(CONFIG.xpBase * CONFIG.xpGrowth ** (level - 1));
@@ -306,6 +329,7 @@ function resetToMenu() {
   state.enemyBullets = [];
   state.bolts = [];
   state.floaters = [];
+  state.particles = [];
   state.kills = 0;
   state.level = 1;
   state.exp = 0;
@@ -317,6 +341,9 @@ function resetToMenu() {
   state.spawnTimer = 1.15;
   state.nextKind = "chaser";
   state.elapsed = 0;
+  state.shakeTimer = 0;
+
+  initEnvironment();
 
   hud.mainMenu.classList.remove("hidden");
   hud.weaponModal.classList.add("hidden");
@@ -508,6 +535,28 @@ function spawnFloater(x, y, amount, crit) {
   if (state.floaters.length > 24) state.floaters.shift();
 }
 
+function triggerShake(duration, magnitude) {
+  state.shakeTimer = duration;
+  state.shakeMagnitude = magnitude;
+}
+
+function spawnParticles(x, y, color, count = 6) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 40 + Math.random() * 110;
+    state.particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color,
+      size: 2 + Math.random() * 3,
+      life: 0.3 + Math.random() * 0.3,
+      maxLife: 0.6,
+    });
+  }
+}
+
 function grantExp(amount) {
   state.exp += amount;
   while (state.exp >= state.expToNext) {
@@ -522,11 +571,15 @@ function damageEnemy(enemy, amount, crit) {
   enemy.hp -= amount;
   const at = centerOf(enemy);
   spawnFloater(at.x, at.y - 8, amount, crit);
+  spawnParticles(at.x, at.y, crit ? "#f7d774" : "#e3c27a", crit ? 10 : 5);
+  triggerShake(0.08, 3.5);
+
   if (enemy.hp > 0) return;
   enemy.hp = 0;
   state.kills += 1;
   const expVal = enemy.kind === "shooter" ? CONFIG.shooterExp : (enemy.kind === "runner" ? CONFIG.runnerExp : CONFIG.chaserExp);
   grantExp(expVal);
+  spawnParticles(at.x, at.y, "#805828", 12);
 }
 
 function pointInCone(point, origin, dir, range, arc) {
@@ -587,6 +640,9 @@ function hurtPlayer(amount) {
 
   player.hp -= amount;
   player.hurtTimer = CONFIG.hurtCooldown;
+  triggerShake(0.18, 6);
+  spawnParticles(centerOf(player).x, centerOf(player).y, "#e23b3b", 8);
+
   if (player.hp <= 0) {
     player.hp = 0;
     endGame();
@@ -714,9 +770,9 @@ function attackProfile() {
     return {
       kind: "fork",
       cooldown: 0.78 * player.forkHaste,
-      damage: 11, // Zwiększone obrażenia wideł
+      damage: 11,
       range: 160 * player.forkReach,
-      width: 24, // Wąski prostokąt wzdłuż pchnięcia
+      width: 24,
       knock: Math.min(150, 110 * player.forkReach),
       active: 0.1,
     };
@@ -724,9 +780,9 @@ function attackProfile() {
   return {
     kind: "club",
     cooldown: 1.32,
-    damage: 10 * player.clubPower, // Zmniejszone obrażenia bazowe pałki
-    range: 85, // Zmniejszony zasięg w przód
-    arc: Math.min(Math.PI * 1.1, Math.PI * 0.65 + player.clubArc), // Węższy kąt uderzenia
+    damage: 10 * player.clubPower,
+    range: 85,
+    arc: Math.min(Math.PI * 1.1, Math.PI * 0.65 + player.clubArc),
     knock: 34,
     active: 0.16,
   };
@@ -845,6 +901,15 @@ function updateFloaters(dt) {
   state.floaters = state.floaters.filter((floater) => floater.life > 0);
 }
 
+function updateParticles(dt) {
+  for (const p of state.particles) {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+  }
+  state.particles = state.particles.filter((p) => p.life > 0);
+}
+
 function updatePlayer(dt) {
   const player = state.player;
   const move = readMoveAxis();
@@ -921,7 +986,6 @@ function updateSpawning(dt) {
   state.spawnTimer -= dt;
   if (state.spawnTimer > 0) return;
 
-  // Cykl: chaser -> runner -> shooter -> chaser
   const kinds = ["chaser", "runner", "shooter"];
   const currentIdx = kinds.indexOf(state.nextKind);
   const kind = state.nextKind;
@@ -1077,7 +1141,6 @@ function fireEnemyBullet(enemy) {
 function updateEnemies(dt) {
   const playerCenter = centerOf(state.player);
 
-  // 1. Ruch AI i Flanking
   for (const enemy of state.enemies) {
     if (enemy.hp <= 0) continue;
     if (enemy.kind === "shooter") moveShooter(enemy, dt, playerCenter);
@@ -1086,7 +1149,6 @@ function updateEnemies(dt) {
     keepInside(enemy);
   }
 
-  // 2. Kolizje i separacja (Flocking - unikanie nakładania się wrogów)
   for (let i = 0; i < state.enemies.length; i++) {
     for (let j = i + 1; j < state.enemies.length; j++) {
       const e1 = state.enemies[i];
@@ -1159,10 +1221,15 @@ function update(dt) {
     return;
   }
 
+  if (state.shakeTimer > 0) {
+    state.shakeTimer -= dt;
+  }
+
   updatePlayer(dt);
   updateAttack(dt);
   updateBolts(dt);
   updateFloaters(dt);
+  updateParticles(dt);
 
   if (state.pendingLevels > 0) {
     openUpgrade();
@@ -1177,22 +1244,30 @@ function update(dt) {
 }
 
 function drawBackground() {
-  ctx.fillStyle = "#000";
+  // Soczysta zielona trawa
+  ctx.fillStyle = "#324d25";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.strokeStyle = "#161619";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  const step = 40;
-  for (let x = 0; x <= canvas.width; x += step) {
-    ctx.moveTo(x + 0.5, 0);
-    ctx.lineTo(x + 0.5, canvas.height);
+  // Plamy piasku / ziemi
+  ctx.fillStyle = "#4a3c26";
+  for (const patch of state.dirtPatches) {
+    ctx.beginPath();
+    ctx.ellipse(patch.x, patch.y, patch.rx, patch.ry, 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(74, 60, 38, 0.45)";
+    ctx.fill();
   }
-  for (let y = 0; y <= canvas.height; y += step) {
-    ctx.moveTo(0, y + 0.5);
-    ctx.lineTo(canvas.width, y + 0.5);
+
+  // Kępki trawy
+  ctx.strokeStyle = "#436631";
+  ctx.lineWidth = 2;
+  for (const tuft of state.grassTufts) {
+    ctx.beginPath();
+    ctx.moveTo(tuft.x, tuft.y);
+    ctx.lineTo(tuft.x - 3, tuft.y - 6);
+    ctx.moveTo(tuft.x, tuft.y);
+    ctx.lineTo(tuft.x + 3, tuft.y - 7);
+    ctx.stroke();
   }
-  ctx.stroke();
 }
 
 function drawCone(origin, dir, range, arc, color, alpha) {
@@ -1205,7 +1280,7 @@ function drawCone(origin, dir, range, arc, color, alpha) {
   ctx.arc(origin.x, origin.y, range, aim - arc / 2, aim + arc / 2);
   ctx.closePath();
   ctx.fill();
-  ctx.globalAlpha = Math.min(1, alpha + 0.25);
+  ctx.globalAlpha = Math.min(1, alpha + 0.3);
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.stroke();
@@ -1220,29 +1295,88 @@ function drawThrustBox(origin, dir, length, width, color, alpha) {
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
   ctx.fillRect(0, -width / 2, length, width);
-  ctx.globalAlpha = Math.min(1, alpha + 0.25);
+  ctx.globalAlpha = Math.min(1, alpha + 0.3);
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.strokeRect(0, -width / 2, length, width);
   ctx.restore();
 }
 
-function drawArrow(x, y, facing, length, fill) {
-  const angle = Math.atan2(facing.y, facing.x);
+function drawHero(player) {
+  const at = centerOf(player);
+  const dashing = player.dashTimer > 0;
+  const hurtFlash = player.hurtTimer > 0 && Math.floor(player.hurtTimer * 14) % 2 === 0;
+
+  if (dashing) {
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = "#4da3ff";
+    ctx.beginPath();
+    ctx.arc(at.x - player.dashDir.x * 14, at.y - player.dashDir.y * 14, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
+  if (player.iframe > 0) ctx.globalAlpha = 0.75;
+  if (hurtFlash) ctx.fillStyle = "#fff";
+
+  // Ciało bohatera (tunica)
+  ctx.fillStyle = "#8b5a2b"; // brązowa tunika
   ctx.beginPath();
-  ctx.moveTo(length, 0);
-  ctx.lineTo(-length * 0.75, length * 0.58);
-  ctx.lineTo(-length * 0.34, 0);
-  ctx.lineTo(-length * 0.75, -length * 0.58);
-  ctx.closePath();
-  ctx.fillStyle = fill;
+  ctx.arc(at.x, at.y, 12, 0, Math.PI * 2);
   ctx.fill();
   ctx.lineWidth = 2;
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.65)";
+  ctx.strokeStyle = "#d4af37"; // złoty pas / obramowanie
   ctx.stroke();
+
+  // Głowa
+  ctx.fillStyle = "#e0ac69";
+  ctx.beginPath();
+  ctx.arc(at.x, at.y - 4, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Widoczna broń rotująca w stronę celowania
+  const angle = Math.atan2(player.facing.y, player.facing.x);
+  ctx.translate(at.x, at.y);
+  ctx.rotate(angle);
+
+  if (player.weapon === "bow") {
+    // Rysowanie łuku i cięciwy
+    ctx.strokeStyle = "#8b4513";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(6, 0, 12, -Math.PI / 2, Math.PI / 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#e8e8e8";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(6, -12);
+    ctx.lineTo(6, 12);
+    ctx.stroke();
+    // Strzała na łuku
+    ctx.fillStyle = "#f4e2a4";
+    ctx.fillRect(0, -1, 14, 2);
+  } else if (player.weapon === "fork") {
+    // Widły (trzy zęby)
+    ctx.strokeStyle = "#cccccc";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(4, 0); ctx.lineTo(18, 0); // trzon
+    ctx.moveTo(14, -6); ctx.lineTo(18, -6);
+    ctx.moveTo(14, 0); ctx.lineTo(20, 0);
+    ctx.moveTo(14, 6); ctx.lineTo(18, 6);
+    ctx.stroke();
+  } else if (player.weapon === "club") {
+    // Pałka maczuga
+    ctx.fillStyle = "#5c3a21";
+    ctx.fillRect(4, -3, 10, 6);
+    ctx.fillStyle = "#73492c";
+    ctx.beginPath();
+    ctx.arc(16, 0, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.restore();
 }
 
@@ -1269,10 +1403,10 @@ function drawPlayerStrike() {
   const origin = centerOf(state.player);
 
   if (strike.kind === "fork") {
-    drawThrustBox(origin, strike.dir, strike.range, strike.width, "#d5ecff", 0.2 + fade * 0.4);
+    drawThrustBox(origin, strike.dir, strike.range, strike.width, "#d5ecff", 0.25 + fade * 0.45);
   } else {
     const color = "#ffb15a";
-    drawCone(origin, strike.dir, strike.range, strike.arc, color, 0.2 + fade * 0.4);
+    drawCone(origin, strike.dir, strike.range, strike.arc, color, 0.25 + fade * 0.45);
   }
 }
 
@@ -1285,40 +1419,14 @@ function drawBolts() {
     ctx.rotate(angle);
     ctx.fillStyle = "#f4e2a4";
     ctx.beginPath();
-    ctx.moveTo(9, 0);
-    ctx.lineTo(-7, 3);
+    ctx.moveTo(10, 0);
+    ctx.lineTo(-8, 3);
     ctx.lineTo(-4, 0);
-    ctx.lineTo(-7, -3);
+    ctx.lineTo(-8, -3);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
-}
-
-function drawPlayer() {
-  const player = state.player;
-  const at = centerOf(player);
-  const dashing = player.dashTimer > 0;
-  const hurtFlash = player.hurtTimer > 0 && Math.floor(player.hurtTimer * 14) % 2 === 0;
-
-  if (dashing) {
-    drawArrow(
-      at.x - player.dashDir.x * 18,
-      at.y - player.dashDir.y * 18,
-      player.dashDir,
-      12,
-      "rgba(77, 163, 255, 0.35)"
-    );
-  }
-
-  let color = "#f0d78c";
-  if (dashing || player.iframe > 0) color = "#9fd0ff";
-  if (hurtFlash) color = "#fff6df";
-
-  ctx.save();
-  if (player.iframe > 0) ctx.globalAlpha = 0.72;
-  drawArrow(at.x, at.y, player.facing, 16, color);
-  ctx.restore();
 }
 
 function drawEnemyHpBar(enemy) {
@@ -1333,11 +1441,44 @@ function drawEnemyHpBar(enemy) {
 
 function drawEnemies() {
   for (const enemy of state.enemies) {
-    if (enemy.kind === "shooter") ctx.fillStyle = "#a05cff";
-    else if (enemy.kind === "runner") ctx.fillStyle = "#3ddc6a";
-    else ctx.fillStyle = "#e23b3b";
+    const cx = enemy.x + enemy.w / 2;
+    const cy = enemy.y + enemy.h / 2;
 
-    ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+    if (enemy.kind === "shooter") {
+      // Łucznik: zielony strój, mały łuk
+      ctx.fillStyle = "#2d6a4f";
+      ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+      ctx.fillStyle = "#d0a070";
+      ctx.beginPath();
+      ctx.arc(cx, cy - 3, 5, 0, Math.PI * 2);
+      ctx.fill();
+      // mini łuk
+      ctx.strokeStyle = "#52b788";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx + 6, cy, 6, -Math.PI / 2, Math.PI / 2);
+      ctx.stroke();
+    } else if (enemy.kind === "runner") {
+      // Zwinny bandyta: mały, zakapturzony w ciemnoniebieskim stroju
+      ctx.fillStyle = "#1d3557";
+      ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+      ctx.fillStyle = "#457b9d";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Zwykły bandyta (Chaser): duży, łysy w brązowym stroju
+      ctx.fillStyle = "#804000";
+      ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
+      ctx.fillStyle = "#b07040"; // łysa głowa
+      ctx.beginPath();
+      ctx.arc(cx, cy - 4, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#402000";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(enemy.x, enemy.y, enemy.w, enemy.h);
+    }
+
     drawEnemyHpBar(enemy);
   }
 }
@@ -1345,30 +1486,52 @@ function drawEnemies() {
 function drawEnemyBullets() {
   ctx.fillStyle = "#ff4b4b";
   for (const bullet of state.enemyBullets) {
-    ctx.fillRect(bullet.x, bullet.y, bullet.w, bullet.h);
+    ctx.beginPath();
+    ctx.arc(bullet.x + bullet.w / 2, bullet.y + bullet.h / 2, bullet.w / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawParticles() {
+  for (const p of state.particles) {
+    ctx.save();
+    ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+    ctx.restore();
   }
 }
 
 function drawFloaters() {
   ctx.textAlign = "center";
-  ctx.font = "bold 13px Segoe UI, Tahoma, sans-serif";
+  ctx.font = "bold 13px Cinzel, Tahoma, sans-serif";
   for (const floater of state.floaters) {
     ctx.globalAlpha = clamp(floater.life / 0.7, 0, 1);
-    ctx.fillStyle = floater.crit ? "#ffe08a" : "#f4f4f4";
+    ctx.fillStyle = floater.crit ? "#f7d774" : "#f2e3c6";
     ctx.fillText(floater.text, floater.x, floater.y);
   }
   ctx.globalAlpha = 1;
 }
 
 function render() {
+  ctx.save();
+  if (state.shakeTimer > 0) {
+    const sx = (Math.random() - 0.5) * state.shakeMagnitude;
+    const sy = (Math.random() - 0.5) * state.shakeMagnitude;
+    ctx.translate(sx, sy);
+  }
+
   drawBackground();
   drawChaserTelegraphs();
   drawPlayerStrike();
   drawEnemyBullets();
   drawBolts();
   drawEnemies();
-  drawPlayer();
+  drawHero(state.player);
+  drawParticles();
   drawFloaters();
+
+  ctx.restore();
 }
 
 function updateHud() {

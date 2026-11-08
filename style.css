@@ -7,9 +7,9 @@
 html,
 body {
   height: 100%;
-  background: #000;
-  color: #e8e8e8;
-  font-family: "Segoe UI", Tahoma, sans-serif;
+  background: radial-gradient(circle at center, #1c130d 0%, #080503 100%);
+  color: #f2e3c6;
+  font-family: "Cinzel", "Segoe UI", Tahoma, sans-serif;
 }
 
 body {
@@ -22,7 +22,7 @@ body {
 
 #app {
   position: relative;
-  width: min(1200px, 100vw);
+  width: min(1240px, 100vw);
 }
 
 #game-layout {
@@ -35,23 +35,26 @@ body {
 #stage {
   position: relative;
   flex-shrink: 0;
+  border: 3px solid #b89753;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(0, 0, 0, 0.8);
+  background: #110b07;
 }
 
 #game {
   display: block;
   width: 840px;
   height: 580px;
-  background: #000;
-  border: 1px solid #222;
+  background: #2b4721;
 }
 
 #sidebar {
-  width: 320px;
+  width: 330px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #0a0a0c;
-  border: 1px solid #222;
+  background: linear-gradient(135deg, #24160e 0%, #110905 100%);
+  border: 3px solid #b89753;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
   padding: 14px;
   user-select: none;
 }
@@ -60,21 +63,21 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #121215;
-  border: 1px solid #242429;
+  background: rgba(18, 11, 7, 0.85);
+  border: 1px solid #7d6132;
   padding: 10px;
 }
 
 .timer-section {
   align-items: center;
-  background: #181611;
-  border-color: #4a3f24;
+  background: linear-gradient(135deg, #322312 0%, #181109 100%);
+  border-color: #d4af37;
 }
 
 .timer-section strong {
-  font-size: 24px;
-  color: #f0d78c;
-  font-variant-numeric: tabular-nums;
+  font-family: "Press Start 2P", monospace;
+  font-size: 20px;
+  color: #f7d774;
   letter-spacing: 0.05em;
 }
 
@@ -88,65 +91,66 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #121215;
-  border: 1px solid #242429;
+  background: rgba(18, 11, 7, 0.85);
+  border: 1px solid #7d6132;
   padding: 10px;
 }
 
 .sidebar-block strong {
-  font-size: 16px;
-  color: #e8e8e8;
-  font-variant-numeric: tabular-nums;
+  font-family: "Press Start 2P", monospace;
+  font-size: 14px;
+  color: #f2e3c6;
 }
 
 .label {
-  color: #8d8d8d;
+  color: #c5a875;
   text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-size: 10px;
+  font-family: "Press Start 2P", monospace;
+  letter-spacing: 0.08em;
 }
 
 #hp-bar,
 #exp-bar,
 #dash-bar {
-  height: 10px;
-  background: #141414;
-  border: 1px solid #2a2a2a;
+  height: 12px;
+  background: #0d0704;
+  border: 1px solid #5a4321;
   overflow: hidden;
 }
 
 #hp-bar {
   border-color: #2f6b3a;
-  background: #102216;
+  background: #09140a;
 }
 
 #hp-fill {
   width: 100%;
   height: 100%;
-  background: #3ddc6a;
+  background: linear-gradient(90deg, #2d8a4e, #43c76c);
 }
 
 #hp-fill.low {
-  background: #e23b3b;
+  background: linear-gradient(90deg, #a82e2e, #e23b3b);
 }
 
 #exp-bar {
-  border-color: #6a5a32;
-  background: #1c180f;
+  border-color: #8c7335;
+  background: #141007;
 }
 
 #exp-fill {
   width: 0%;
   height: 100%;
-  background: #e3c27a;
+  background: linear-gradient(90deg, #b8973b, #f3d06a);
 }
 
 #hp-text,
 #exp-text,
 #dash-text {
-  font-size: 12px;
-  color: #b7c7d8;
-  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-family: "Press Start 2P", monospace;
+  color: #dec89d;
 }
 
 .stat-grid {
@@ -160,15 +164,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #18181c;
-  border: 1px solid #2a2a30;
+  background: rgba(14, 9, 6, 0.9);
+  border: 1px solid #5a4321;
   padding: 6px 10px;
 }
 
 .stat strong {
-  font-size: 15px;
-  color: #f2f2f2;
-  font-variant-numeric: tabular-nums;
+  font-family: "Press Start 2P", monospace;
+  font-size: 13px;
+  color: #f7d774;
 }
 
 .dash-status {
@@ -185,14 +189,14 @@ body {
 }
 
 #dash-bar {
-  background: #141c28;
-  border-color: #2c4566;
+  background: #0a111b;
+  border-color: #2a466d;
 }
 
 #dash-fill {
   width: 100%;
   height: 100%;
-  background: #4da3ff;
+  background: linear-gradient(90deg, #28639c, #4da3ff);
 }
 
 .weapon-info {
@@ -203,15 +207,17 @@ body {
 }
 
 .weapon-info strong {
-  font-size: 16px;
-  color: #f0d78c;
+  font-family: "Cinzel", serif;
+  font-size: 18px;
+  color: #f7d774;
+  font-weight: 800;
 }
 
 #active-upgrades-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 120px;
+  max-height: 130px;
   overflow-y: auto;
 }
 
@@ -219,36 +225,39 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #18181c;
-  border: 1px solid #2a2a30;
-  padding: 4px 8px;
-  font-size: 12px;
+  background: rgba(14, 9, 6, 0.9);
+  border: 1px solid #5a4321;
+  padding: 5px 8px;
+  font-size: 11px;
 }
 
 .upgrade-item span:first-child {
-  color: #e3c27a;
+  color: #f3d06a;
 }
 
 .upgrade-item span:last-child {
-  color: #8d8d8d;
+  color: #a89164;
+  font-family: "Press Start 2P", monospace;
+  font-size: 9px;
 }
 
 .no-upgrades {
-  color: #6e6e6e;
-  font-size: 12px;
+  color: #8c7853;
+  font-size: 11px;
   font-style: italic;
 }
 
 .sidebar-hint {
-  background: #121215;
-  border: 1px solid #242429;
+  background: rgba(18, 11, 7, 0.85);
+  border: 1px solid #7d6132;
   padding: 8px 10px;
 }
 
 #hint {
-  color: #8d8d8d;
+  color: #c5a875;
   font-size: 11px;
-  line-height: 1.4;
+  line-height: 1.5;
+  font-family: "Cinzel", serif;
 }
 
 .modal {
@@ -258,9 +267,9 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
   padding: 28px 20px;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(8, 5, 3, 0.92);
   text-align: center;
   z-index: 2;
 }
@@ -270,100 +279,123 @@ body {
 }
 
 .eyebrow {
-  color: #e3c27a;
+  color: #d4af37;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-size: 12px;
+  font-size: 11px;
+  font-family: "Press Start 2P", monospace;
 }
 
 .modal h1,
 .modal h2 {
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  font-family: "Cinzel", serif;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #f7d774;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .modal-lead {
-  max-width: 520px;
-  color: #c8c8c8;
-  line-height: 1.45;
+  max-width: 540px;
+  color: #dec89d;
+  line-height: 1.5;
   font-size: 14px;
+  font-family: "Cinzel", serif;
 }
 
 .choice-row {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
   margin-top: 8px;
 }
 
 .choice {
   position: relative;
-  width: 210px;
-  min-height: 148px;
+  width: 220px;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   gap: 6px;
-  padding: 16px 14px 14px;
-  text-align: left;
-  color: #f2f2f2;
-  background: #12110e;
-  border: 1px solid #3c3426;
+  padding: 18px 14px 14px;
+  color: #f2e3c6;
+  background: linear-gradient(135deg, #1e130d 0%, #0d0805 100%);
+  border: 2px solid #8c6d36;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   font: inherit;
   cursor: pointer;
 }
 
 .choice:hover,
 .choice:focus-visible {
-  border-color: #e3c27a;
-  background: #1a1812;
+  border-color: #f7d774;
+  background: linear-gradient(135deg, #2b1c13, #150e09);
   outline: none;
+  transform: translateY(-2px);
 }
 
 .menu-btn {
-  width: 240px;
+  width: 260px;
   min-height: auto;
   align-items: center;
   text-align: center;
   justify-content: center;
-  padding: 18px;
+  padding: 16px;
+  font-family: "Cinzel", serif;
+  font-weight: 800;
+  font-size: 18px;
 }
 
 .choice-key {
   position: absolute;
-  top: 10px;
+  top: 8px;
   right: 10px;
-  color: #8d8d8d;
-  font-size: 12px;
+  color: #a89164;
+  font-size: 10px;
+  font-family: "Press Start 2P", monospace;
+}
+
+.weapon-icon {
+  font-size: 32px;
+  margin: 6px 0 2px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
 }
 
 .choice-cat {
-  color: #e3c27a;
+  color: #d4af37;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 11px;
+  font-size: 10px;
+  font-family: "Press Start 2P", monospace;
 }
 
 .choice strong {
-  font-size: 18px;
+  font-family: "Cinzel", serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #f7d774;
 }
 
 .choice-desc {
-  color: #bdbdbd;
-  font-size: 13px;
+  color: #bcab88;
+  font-size: 12px;
   line-height: 1.4;
+  font-family: "Cinzel", serif;
 }
 
 .choice.stat-upgrade .choice-cat {
-  color: #8ec8ff;
+  color: #6fb0ff;
 }
 
 .overlay-hint {
-  margin-top: 6px;
-  color: #9a9a9a;
-  font-size: 13px;
+  margin-top: 8px;
+  color: #a89164;
+  font-size: 11px;
+  font-family: "Press Start 2P", monospace;
 }
 
 #overlay,

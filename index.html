@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Droga Bohatera</title>
+  <title>Droga Bohatera — Medieval Arena Survival</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,39 +17,42 @@
 
         <div id="main-menu" class="modal">
           <div class="menu-logo" data-logo="droga-bohatera">
-            <span class="eyebrow">Arena Survival</span>
+            <span class="eyebrow">Medieval Arena Survival</span>
             <h1>Droga Bohatera</h1>
-            <p class="modal-lead">Przetrwaj 10 minut wrogiej nawałnicy i zostań legendą.</p>
+            <p class="modal-lead">Przetrwaj 10 minut wrogiej nawałnicy w mrocznym świecie i zostań legendą.</p>
           </div>
           <button type="button" id="start-game-btn" class="choice menu-btn">
             <span class="choice-cat">Rozpocznij</span>
             <strong>Nowa Gra</strong>
-            <span class="choice-desc">Wyrusz w wędrówkę rycerza.</span>
+            <span class="choice-desc">Wyrusz w niebezpieczną wędrówkę.</span>
           </button>
         </div>
 
         <div id="weapon-modal" class="modal hidden">
-          <p class="eyebrow">Poziom 1 — Młodość</p>
+          <p class="eyebrow">Poziom 1 — Wybór Rusztowania</p>
           <h2>Wybierz pierwszą broń</h2>
-          <p class="modal-lead">Młody chłopak wyrusza w drogę. Broń zostanie z nim na tę wędrówkę.</p>
+          <p class="modal-lead">Młody chłopak staje przed wyborem oręża. Wybrana broń zdefiniuje Twój styl walki.</p>
           <div class="choice-row">
             <button type="button" class="choice" data-weapon="bow">
               <span class="choice-key">1</span>
+              <div class="weapon-icon bow-icon">🏹</div>
               <span class="choice-cat">Dystans</span>
               <strong>Łuk</strong>
-              <span class="choice-desc">Zbalansowane, precyzyjne pociski w kierunku spojrzenia.</span>
+              <span class="choice-desc">Precyzyjne strzały w kierunku spojrzenia.</span>
             </button>
             <button type="button" class="choice" data-weapon="fork">
               <span class="choice-key">2</span>
+              <div class="weapon-icon fork-icon">🔱</div>
               <span class="choice-cat">Pchnięcie</span>
               <strong>Widły</strong>
-              <span class="choice-desc">Wąski, daleki cios w linii. Mocno odpycha trafionych.</span>
+              <span class="choice-desc">Wąski, daleki prostokątny cios z odepchnięciem.</span>
             </button>
             <button type="button" class="choice" data-weapon="club">
               <span class="choice-key">3</span>
+              <div class="weapon-icon club-icon">🪵</div>
               <span class="choice-cat">Obszar</span>
               <strong>Pałka</strong>
-              <span class="choice-desc">Ciężki, wolny zamach. Szeroki stożek i duże obrażenia.</span>
+              <span class="choice-desc">Ciężki, wąski zamach o dużej sile.</span>
             </button>
           </div>
           <p class="overlay-hint">Kliknij broń albo naciśnij 1, 2 lub 3</p>
