@@ -29,6 +29,7 @@ export const hud = {
   overlayStats: document.getElementById("overlay-stats"),
   victoryModal: document.getElementById("victory-modal"),
   victoryStats: document.getElementById("victory-stats"),
+  pauseModal: document.getElementById("pause-modal"),
 };
 
 export const keys = new Set();

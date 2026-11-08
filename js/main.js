@@ -1,13 +1,12 @@
 ﻿import { CONFIG, WEAPON_NAMES } from './config.js';
-import { state, hud, keys, initEnvironment, createPlayer, initHud } from './state.js';
+import { state, hud, keys, initEnvironment, createPlayer } from './state.js';
 import { updatePlayer, updateAttack, tryStartDash } from './player.js';
 import { updateSpawning, updateEnemies, hurtPlayer, computeDamage, damageEnemy } from './enemies.js';
-import { render, renderWeaponPreviews } from './renderer.js';
-import { updateHud, openUpgrade, pickOffered } from './ui.js';
+import { render } from './renderer.js';
+import { updateHud, openUpgrade, pickOffered, renderWeaponPreviews } from './ui.js';
 import { canvas } from './state.js';
 
 // Inicjalizacja referencji HUD po załadowaniu DOM
-initHud();
 
 export function resetToMenu() {
   state.player = createPlayer();
