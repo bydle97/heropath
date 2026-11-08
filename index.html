@@ -13,7 +13,7 @@
   <div id="app">
     <div id="game-layout">
       <div id="stage">
-        <canvas id="game" width="840" height="580"></canvas>
+        <canvas id="game" width="920" height="620"></canvas>
 
         <div id="main-menu" class="modal">
           <div class="menu-logo" data-logo="droga-bohatera">
@@ -35,24 +35,21 @@
           <div class="choice-row">
             <button type="button" class="choice" data-weapon="bow">
               <span class="choice-key">1</span>
-              <div class="weapon-icon bow-icon">🏹</div>
               <span class="choice-cat">Dystans</span>
               <strong>Łuk</strong>
               <span class="choice-desc">Precyzyjne strzały w kierunku spojrzenia.</span>
             </button>
             <button type="button" class="choice" data-weapon="fork">
               <span class="choice-key">2</span>
-              <div class="weapon-icon fork-icon">🔱</div>
               <span class="choice-cat">Pchnięcie</span>
               <strong>Widły</strong>
               <span class="choice-desc">Wąski, daleki prostokątny cios z odepchnięciem.</span>
             </button>
             <button type="button" class="choice" data-weapon="club">
               <span class="choice-key">3</span>
-              <div class="weapon-icon club-icon">🪵</div>
               <span class="choice-cat">Obszar</span>
               <strong>Pałka</strong>
-              <span class="choice-desc">Ciężki, wąski zamach o dużej sile.</span>
+              <span class="choice-desc">Ciężki, bardzo wąski zamach o dużej sile.</span>
             </button>
           </div>
           <p class="overlay-hint">Kliknij broń albo naciśnij 1, 2 lub 3</p>
@@ -104,7 +101,7 @@
             <div id="exp-bar" aria-label="Doświadczenie">
               <div id="exp-fill"></div>
             </div>
-            <span id="exp-text">0 / 34</span>
+            <span id="exp-text">0 / 18</span>
           </div>
         </div>
 
@@ -161,6 +158,6 @@
     </div>
   </div>
 
-  <script src="game.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

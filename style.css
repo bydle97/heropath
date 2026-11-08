@@ -22,7 +22,7 @@ body {
 
 #app {
   position: relative;
-  width: min(1240px, 100vw);
+  width: min(1300px, 100vw);
 }
 
 #game-layout {
@@ -42,13 +42,14 @@ body {
 
 #game {
   display: block;
-  width: 840px;
-  height: 580px;
+  width: 920px;
+  height: 620px;
   background: #2b4721;
 }
 
 #sidebar {
   width: 330px;
+  min-height: 626px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -315,7 +316,7 @@ body {
 .choice {
   position: relative;
   width: 220px;
-  min-height: 160px;
+  min-height: 170px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -359,10 +360,10 @@ body {
   font-family: "Press Start 2P", monospace;
 }
 
-.weapon-icon {
-  font-size: 32px;
+.weapon-preview {
   margin: 6px 0 2px;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
+  background: #110804;
+  border: 1px solid #5a4321;
 }
 
 .choice-cat {
@@ -411,12 +412,13 @@ body {
   z-index: 5;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1260px) {
   #game-layout {
     flex-direction: column;
     align-items: center;
   }
   #sidebar {
-    width: 840px;
+    width: 920px;
+    min-height: auto;
   }
 }
