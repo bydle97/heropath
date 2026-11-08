@@ -1,9 +1,13 @@
 ﻿import { CONFIG, WEAPON_NAMES } from './config.js';
-import { state, hud, keys, initEnvironment, createPlayer } from './state.js';
+import { state, hud, keys, initEnvironment, createPlayer, initHud } from './state.js';
 import { updatePlayer, updateAttack, tryStartDash } from './player.js';
-import { updateSpawning, updateEnemies } from './enemies.js';
+import { updateSpawning, updateEnemies, hurtPlayer, computeDamage, damageEnemy } from './enemies.js';
 import { render, renderWeaponPreviews } from './renderer.js';
 import { updateHud, openUpgrade, pickOffered } from './ui.js';
+import { canvas } from './state.js';
+
+// Inicjalizacja referencji HUD po załadowaniu DOM
+initHud();
 
 export function resetToMenu() {
   state.player = createPlayer();
@@ -27,19 +31,20 @@ export function resetToMenu() {
 
   initEnvironment();
 
-  hud.mainMenu.classList.remove("hidden");
-  hud.weaponModal.classList.add("hidden");
-  hud.upgradeModal.classList.add("hidden");
-  hud.overlay.classList.add("hidden");
-  hud.victoryModal.classList.add("hidden");
-  hud.upgradeChoices.innerHTML = "";
+  if (hud.mainMenu) hud.mainMenu.classList.remove("hidden");
+  if (hud.weaponModal) hud.weaponModal.classList.add("hidden");
+  if (hud.upgradeModal) hud.upgradeModal.classList.add("hidden");
+  if (hud.overlay) hud.overlay.classList.add("hidden");
+  if (hud.victoryModal) hud.victoryModal.classList.add("hidden");
+  if (hud.pauseModal) hud.pauseModal.classList.add("hidden");
+  if (hud.upgradeChoices) hud.upgradeChoices.innerHTML = "";
   updateHud();
 }
 
 export function startArmory() {
   state.phase = "armory";
-  hud.mainMenu.classList.add("hidden");
-  hud.weaponModal.classList.remove("hidden");
+  if (hud.mainMenu) hud.mainMenu.classList.add("hidden");
+  if (hud.weaponModal) hud.weaponModal.classList.remove("hidden");
   renderWeaponPreviews();
   updateHud();
 }
@@ -52,7 +57,7 @@ export function chooseWeapon(weaponId) {
   state.phase = "play";
   state.spawnTimer = 1.15;
   state.elapsed = 0;
-  hud.weaponModal.classList.add("hidden");
+  if (hud.weaponModal) hud.weaponModal.classList.add("hidden");
   updateHud();
 }
 
@@ -63,26 +68,46 @@ export function endGame() {
   const minutes = Math.floor(state.elapsed / 60);
   const seconds = Math.floor(state.elapsed % 60);
   const timeStr = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  hud.overlayStats.textContent =
-    `Czas przetrwania: ${timeStr}   ·   Poziom ${state.level}   ·   Pokonani: ${state.kills}   ·   Broń: ${weapon}`;
-  hud.upgradeModal.classList.add("hidden");
-  hud.overlay.classList.remove("hidden");
+  if (hud.overlayStats) {
+    hud.overlayStats.textContent =
+      `Czas przetrwania: ${timeStr}   ·   Poziom ${state.level}   ·   Pokonani: ${state.kills}   ·   Broń: ${weapon}`;
+  }
+  if (hud.upgradeModal) hud.upgradeModal.classList.add("hidden");
+  if (hud.pauseModal) hud.pauseModal.classList.add("hidden");
+  if (hud.overlay) hud.overlay.classList.remove("hidden");
 }
 
 export function triggerVictory() {
   state.phase = "victory";
   state.pendingLevels = 0;
   const weapon = WEAPON_NAMES[state.player.weapon] || "brak";
-  hud.victoryStats.textContent =
-    `Czas przetrwania: 10:00 / 10:00   ·   Poziom ${state.level}   ·   Pokonani: ${state.kills}   ·   Broń: ${weapon}`;
-  hud.upgradeModal.classList.add("hidden");
-  hud.victoryModal.classList.remove("hidden");
+  if (hud.victoryStats) {
+    hud.victoryStats.textContent =
+      `Czas przetrwania: 10:00 / 10:00   ·   Poziom ${state.level}   ·   Pokonani: ${state.kills}   ·   Broń: ${weapon}`;
+  }
+  if (hud.upgradeModal) hud.upgradeModal.classList.add("hidden");
+  if (hud.pauseModal) hud.pauseModal.classList.add("hidden");
+  if (hud.victoryModal) hud.victoryModal.classList.remove("hidden");
 }
 
 const MOVE_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD"]);
 const AIM_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
 window.addEventListener("keydown", (event) => {
+  // Obsługa klawisza Ctrl (pauza)
+  if (event.code === "ControlLeft" || event.code === "ControlRight" || event.key === "Control") {
+    event.preventDefault();
+    if (state.phase === "play") {
+      state.phase = "paused";
+      updateHud();
+      return;
+    } else if (state.phase === "paused") {
+      state.phase = "play";
+      updateHud();
+      return;
+    }
+  }
+
   if (MOVE_KEYS.has(event.code) || AIM_KEYS.has(event.code) || event.code === "Space") {
     event.preventDefault();
   }
@@ -126,29 +151,39 @@ window.addEventListener("blur", () => {
   keys.clear();
 });
 
-hud.startGameBtn.addEventListener("click", () => {
-  startArmory();
-});
+if (hud.startGameBtn) {
+  hud.startGameBtn.addEventListener("click", () => {
+    startArmory();
+  });
+}
 
-hud.weaponModal.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-weapon]");
-  if (!button) return;
-  chooseWeapon(button.dataset.weapon);
-});
+if (hud.weaponModal) {
+  hud.weaponModal.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-weapon]");
+    if (!button) return;
+    chooseWeapon(button.dataset.weapon);
+  });
+}
 
-hud.upgradeChoices.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-index]");
-  if (!button) return;
-  pickOffered(Number(button.dataset.index));
-});
+if (hud.upgradeChoices) {
+  hud.upgradeChoices.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-index]");
+    if (!button) return;
+    pickOffered(Number(button.dataset.index));
+  });
+}
 
-hud.overlay.addEventListener("click", () => {
-  if (state.phase === "dead") resetToMenu();
-});
+if (hud.overlay) {
+  hud.overlay.addEventListener("click", () => {
+    if (state.phase === "dead") resetToMenu();
+  });
+}
 
-hud.victoryModal.addEventListener("click", () => {
-  if (state.phase === "victory") resetToMenu();
-});
+if (hud.victoryModal) {
+  hud.victoryModal.addEventListener("click", () => {
+    if (state.phase === "victory") resetToMenu();
+  });
+}
 
 function updateBolts(dt) {
   for (const bolt of state.bolts) {
@@ -213,6 +248,7 @@ function resolveCollisions() {
   for (const enemy of state.enemies) {
     if (!rectsOverlap(player, enemy)) continue;
     hurtPlayer(CONFIG.contactDamage);
+    if (state.player.hp <= 0) endGame();
     break;
   }
 
@@ -222,12 +258,10 @@ function resolveCollisions() {
     if (!rectsOverlap(player, state.enemyBullets[i])) continue;
     state.enemyBullets.splice(i, 1);
     hurtPlayer(CONFIG.enemyBulletDamage);
+    if (state.player.hp <= 0) endGame();
     break;
   }
 }
-
-import { hurtPlayer, computeDamage, damageEnemy } from './enemies.js';
-import { canvas } from './state.js';
 
 function update(dt) {
   if (state.phase !== "play") return;

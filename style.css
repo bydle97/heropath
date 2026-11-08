@@ -270,9 +270,16 @@ body {
   justify-content: center;
   gap: 14px;
   padding: 28px 20px;
-  background: rgba(8, 5, 3, 0.92);
+  background: rgba(8, 5, 3, 0.85);
   text-align: center;
   z-index: 2;
+}
+
+/* Półprzezroczyste tło dla pauzy i ulepszeń, aby plansza była widoczna */
+#upgrade-modal,
+#pause-modal {
+  background: rgba(8, 5, 3, 0.55);
+  backdrop-filter: blur(1px);
 }
 
 .modal.hidden {
@@ -404,7 +411,8 @@ body {
   z-index: 4;
 }
 
-#upgrade-modal {
+#upgrade-modal,
+#pause-modal {
   z-index: 3;
 }
 

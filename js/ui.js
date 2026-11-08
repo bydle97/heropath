@@ -1,5 +1,5 @@
 ﻿import { CONFIG, WEAPON_NAMES, WEAPON_DESCS, UPGRADE_DEFS } from './config.js';
-import { state, hud, canvas } from './state.js';
+import { state, hud } from './state.js';
 import { dashCooldownDuration } from './player.js';
 import { drawWeaponPreviewOnCanvas } from './renderer.js';
 
@@ -50,11 +50,15 @@ export function updateHud() {
       activeContainer.appendChild(item);
     });
   }
+
+  // Widoczność modala pauzy
+  if (hud.pauseModal) {
+    hud.pauseModal.classList.toggle("hidden", state.phase !== "paused");
+  }
 }
 
 export function rollUpgrades() {
   const weapon = state.player.weapon;
-  // Budowanie puli z uwzględnieniem wag (większa szansa na ulepszenia broni, mniejsza na czyste statystyki)
   const weightedPool = [];
   UPGRADE_DEFS.forEach((def) => {
     if (def.weapon && def.weapon !== weapon) return;
@@ -101,7 +105,7 @@ export function openUpgrade() {
   state.offered = rollUpgrades();
   if (state.offered.length === 0) {
     state.pendingLevels = 0;
-    state.phase = "play";
+    state.phase = "paused";
     return;
   }
 
@@ -139,19 +143,22 @@ export function pickOffered(index) {
   state.pendingLevels = Math.max(0, state.pendingLevels - 1);
   state.offered = [];
 
+  hud.upgradeModal.classList.add("hidden");
+
   if (state.pendingLevels > 0) {
     openUpgrade();
     updateHud();
     return;
   }
 
-  state.phase = "play";
-  hud.upgradeModal.classList.add("hidden");
+  // Po wybraniu ulepszenia gra wstrzymuje się (pauza), wymagając naciśnięcia Ctrl, aby gracz zdążył przygotować się do walki
+  state.phase = "paused";
   updateHud();
 }
 
 export function renderWeaponPreviews() {
   const modal = hud.weaponModal;
+  if (!modal) return;
   const buttons = modal.querySelectorAll("[data-weapon]");
   buttons.forEach((btn) => {
     const weaponType = btn.dataset.weapon;
@@ -161,7 +168,6 @@ export function renderWeaponPreviews() {
       previewCanvas.className = "weapon-preview";
       previewCanvas.width = 54;
       previewCanvas.height = 54;
-      // Wstaw pod klawiszem lub jako pierwszego elementu
       btn.insertBefore(previewCanvas, btn.firstChild.nextSibling);
     }
     drawWeaponPreviewOnCanvas(previewCanvas, weaponType);
