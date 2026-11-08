@@ -4,7 +4,7 @@
  *
  * WASD porusza, strzałki ustawiają jeden z 8 kierunków spojrzenia,
  * spacja robi krótki unik. Broń atakuje sama w stronę spojrzenia.
- * 10-minutowy run z narastającą nawałnicą wrogów.
+ * 10-minutowy run z narastającą nawałnicą wrogów, nowymi wrogami i flockingiem.
  */
 
 const CONFIG = {
@@ -41,12 +41,17 @@ const CONFIG = {
   shooterMaxDist: 280,
   shooterFireInterval: 2,
 
+  runnerHp: 8,
+  runnerSpeed: 98,
+  runnerDamage: 1,
+
   enemyBulletSize: 9,
   enemyBulletSpeed: 250,
   enemyBulletDamage: 1,
 
   chaserExp: 7,
   shooterExp: 9,
+  runnerExp: 6,
 
   xpBase: 34,
   xpGrowth: 1.48,
@@ -62,8 +67,8 @@ const WEAPON_NAMES = {
 
 const WEAPON_DESCS = {
   bow: "Strzela precyzyjnymi pociskami w kierunku spojrzenia.",
-  fork: "Wąski, daleki cios w linii. Mocno odpycha trafionych.",
-  club: "Ciężki, wolny zamach o dużym obszarze i obrażeniach.",
+  fork: "Wąskie pchnięcie o dużych obrażeniach wzdłuż linii.",
+  club: "Ciężki, wąski zamach o dużych obrażeniach obszarowych.",
 };
 
 const STARTING_STATS = {
@@ -190,7 +195,7 @@ const UPGRADE_DEFS = [
     title: "Szersze zamachy",
     description: "Pałka obejmuje szerszy stożek przed bohaterem.",
     apply(player) {
-      player.clubArc += 0.34;
+      player.clubArc += 0.22;
     },
   },
   {
@@ -253,7 +258,6 @@ const state = {
   pendingLevels: 0,
   offered: [],
   stacks: {},
-  // menu, armory, play, upgrade, dead, victory
   phase: "menu",
   spawnTimer: 1.1,
   nextKind: "chaser",
@@ -521,7 +525,8 @@ function damageEnemy(enemy, amount, crit) {
   if (enemy.hp > 0) return;
   enemy.hp = 0;
   state.kills += 1;
-  grantExp(enemy.kind === "shooter" ? CONFIG.shooterExp : CONFIG.chaserExp);
+  const expVal = enemy.kind === "shooter" ? CONFIG.shooterExp : (enemy.kind === "runner" ? CONFIG.runnerExp : CONFIG.chaserExp);
+  grantExp(expVal);
 }
 
 function pointInCone(point, origin, dir, range, arc) {
@@ -543,6 +548,17 @@ function rectTouchesCone(rect, origin, dir, range, arc) {
     { x: rect.x + rect.w, y: rect.y + rect.h },
   ];
   return points.some((point) => pointInCone(point, origin, dir, range, arc));
+}
+
+function rectTouchesThrustBox(rect, origin, dir, length, width) {
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const dx = cx - origin.x;
+  const dy = cy - origin.y;
+  const forward = dx * dir.x + dy * dir.y;
+  if (forward < 0 || forward > length) return false;
+  const perp = Math.abs(-dx * dir.y + dy * dir.x);
+  return perp <= width / 2 + Math.max(rect.w, rect.h) / 2;
 }
 
 function keepInside(entity) {
@@ -689,7 +705,7 @@ function attackProfile() {
   if (player.weapon === "bow") {
     return {
       kind: "bow",
-      cooldown: 0.65 * player.bowHaste, // Wolniejszy, zbalansowany atak łukiem
+      cooldown: 0.65 * player.bowHaste,
       damage: 4 * player.bowPower,
       volley: player.bowVolley,
     };
@@ -697,20 +713,20 @@ function attackProfile() {
   if (player.weapon === "fork") {
     return {
       kind: "fork",
-      cooldown: 0.82 * player.forkHaste,
-      damage: 8,
-      range: 176 * player.forkReach,
-      arc: 0.46,
-      knock: Math.min(150, 98 * player.forkReach),
+      cooldown: 0.78 * player.forkHaste,
+      damage: 11, // Zwiększone obrażenia wideł
+      range: 160 * player.forkReach,
+      width: 24, // Wąski prostokąt wzdłuż pchnięcia
+      knock: Math.min(150, 110 * player.forkReach),
       active: 0.1,
     };
   }
   return {
     kind: "club",
     cooldown: 1.32,
-    damage: 14 * player.clubPower,
-    range: 104,
-    arc: Math.min(Math.PI * 1.7, Math.PI * 0.98 + player.clubArc),
+    damage: 10 * player.clubPower, // Zmniejszone obrażenia bazowe pałki
+    range: 85, // Zmniejszony zasięg w przód
+    arc: Math.min(Math.PI * 1.1, Math.PI * 0.65 + player.clubArc), // Węższy kąt uderzenia
     knock: 34,
     active: 0.16,
   };
@@ -732,6 +748,7 @@ function performAttack() {
     dir,
     range: profile.range,
     arc: profile.arc,
+    width: profile.width,
     damage: profile.damage,
     knock: profile.knock,
     timer: profile.active,
@@ -778,7 +795,16 @@ function updateAttack(dt) {
     const origin = centerOf(player);
     for (const enemy of state.enemies) {
       if (strike.hits.has(enemy) || enemy.hp <= 0) continue;
-      if (!rectTouchesCone(enemy, origin, strike.dir, strike.range, strike.arc)) continue;
+
+      let hitDetected = false;
+      if (strike.kind === "fork") {
+        hitDetected = rectTouchesThrustBox(enemy, origin, strike.dir, strike.range, strike.width);
+      } else {
+        hitDetected = rectTouchesCone(enemy, origin, strike.dir, strike.range, strike.arc);
+      }
+
+      if (!hitDetected) continue;
+
       strike.hits.add(enemy);
       const hit = computeDamage(strike.damage);
       damageEnemy(enemy, hit.amount, hit.crit);
@@ -850,15 +876,20 @@ function randomEdgeSpawn(size) {
 }
 
 function createEnemy(kind) {
-  const size = CONFIG.enemySize;
-  const pos = randomEdgeSpawn(size);
   const isShooter = kind === "shooter";
+  const isRunner = kind === "runner";
+  const size = isRunner ? 18 : CONFIG.enemySize;
+  const pos = randomEdgeSpawn(size);
   const timeProgress = state.elapsed / CONFIG.runDuration;
-  const baseHp = isShooter ? CONFIG.shooterHp : CONFIG.chaserHp;
+
+  let baseHp = CONFIG.chaserHp;
+  if (isShooter) baseHp = CONFIG.shooterHp;
+  if (isRunner) baseHp = CONFIG.runnerHp;
+
   const maxHp = Math.round(baseHp * (1 + timeProgress * 1.8 + (state.level - 1) * 0.2));
 
   return {
-    kind: isShooter ? "shooter" : "chaser",
+    kind: isShooter ? "shooter" : (isRunner ? "runner" : "chaser"),
     x: pos.x,
     y: pos.y,
     w: size,
@@ -871,17 +902,18 @@ function createEnemy(kind) {
     aiTimer: 0,
     aim: { x: 1, y: 0 },
     swingFlash: 0,
+    flankOffset: (Math.random() - 0.5) * 1.4,
   };
 }
 
 function maxEnemiesForTime(elapsed) {
   const progress = elapsed / CONFIG.runDuration;
-  return Math.min(50, Math.floor(4 + progress * 42 + (state.level - 1)));
+  return Math.min(55, Math.floor(4 + progress * 46 + (state.level - 1)));
 }
 
 function spawnIntervalForTime(elapsed) {
   const progress = clamp(elapsed / CONFIG.runDuration, 0, 1);
-  return Math.max(0.32, 2.7 - progress * 2.35 - (state.level - 1) * 0.04);
+  return Math.max(0.3, 2.6 - progress * 2.3 - (state.level - 1) * 0.04);
 }
 
 function updateSpawning(dt) {
@@ -889,8 +921,12 @@ function updateSpawning(dt) {
   state.spawnTimer -= dt;
   if (state.spawnTimer > 0) return;
 
+  // Cykl: chaser -> runner -> shooter -> chaser
+  const kinds = ["chaser", "runner", "shooter"];
+  const currentIdx = kinds.indexOf(state.nextKind);
   const kind = state.nextKind;
-  state.nextKind = kind === "chaser" ? "shooter" : "chaser";
+  state.nextKind = kinds[(currentIdx + 1) % kinds.length];
+
   state.enemies.push(createEnemy(kind));
   state.spawnTimer = spawnIntervalForTime(state.elapsed);
 }
@@ -931,10 +967,15 @@ function moveChaser(enemy, dt, playerCenter) {
     return;
   }
 
+  const angleToPlayer = Math.atan2(dy, dx);
+  const targetAngle = angleToPlayer + (enemy.flankOffset || 0);
+  const moveX = Math.cos(targetAngle);
+  const moveY = Math.sin(targetAngle);
+
   const timeProgress = state.elapsed / CONFIG.runDuration;
   const speed = CONFIG.chaserSpeed + timeProgress * 24 + (state.level - 1) * 4;
-  enemy.x += (dx / dist) * speed * dt;
-  enemy.y += (dy / dist) * speed * dt;
+  enemy.x += moveX * speed * dt;
+  enemy.y += moveY * speed * dt;
   enemy.aim = { x: dx / dist, y: dy / dist };
 }
 
@@ -944,6 +985,50 @@ function resolveChaserSwing(enemy) {
     return;
   }
   hurtPlayer(CONFIG.chaserSwingDamage);
+}
+
+function moveRunner(enemy, dt, playerCenter) {
+  const origin = centerOf(enemy);
+  const dx = playerCenter.x - origin.x;
+  const dy = playerCenter.y - origin.y;
+  const dist = Math.hypot(dx, dy) || 1;
+
+  if (enemy.ai === "retreat") {
+    enemy.aiTimer -= dt;
+    enemy.x -= enemy.aim.x * CONFIG.runnerSpeed * 1.3 * dt;
+    enemy.y -= enemy.aim.y * CONFIG.runnerSpeed * 1.3 * dt;
+    if (enemy.aiTimer <= 0) {
+      enemy.ai = "pause";
+      enemy.aiTimer = 0.45;
+    }
+    return;
+  }
+
+  if (enemy.ai === "pause") {
+    enemy.aiTimer -= dt;
+    if (enemy.aiTimer <= 0) enemy.ai = "chase";
+    return;
+  }
+
+  if (dist <= 32) {
+    if (!playerIsProtected()) {
+      hurtPlayer(CONFIG.runnerDamage);
+    }
+    enemy.ai = "retreat";
+    enemy.aiTimer = 0.38;
+    enemy.aim = { x: dx / dist, y: dy / dist };
+    return;
+  }
+
+  const angleToPlayer = Math.atan2(dy, dx);
+  const targetAngle = angleToPlayer + (enemy.flankOffset || 0);
+  const moveX = Math.cos(targetAngle);
+  const moveY = Math.sin(targetAngle);
+
+  const speed = CONFIG.runnerSpeed + (state.elapsed / 12);
+  enemy.x += moveX * speed * dt;
+  enemy.y += moveY * speed * dt;
+  enemy.aim = { x: dx / dist, y: dy / dist };
 }
 
 function moveShooter(enemy, dt, playerCenter) {
@@ -967,7 +1052,7 @@ function moveShooter(enemy, dt, playerCenter) {
   enemy.shootTimer -= dt;
   if (enemy.shootTimer <= 0) {
     fireEnemyBullet(enemy);
-    enemy.shootTimer = Math.max(0.8, CONFIG.shooterFireInterval - (state.elapsed / CONFIG.runDuration));
+    enemy.shootTimer = Math.max(0.7, CONFIG.shooterFireInterval - (state.elapsed / CONFIG.runDuration));
   }
 }
 
@@ -991,12 +1076,40 @@ function fireEnemyBullet(enemy) {
 
 function updateEnemies(dt) {
   const playerCenter = centerOf(state.player);
+
+  // 1. Ruch AI i Flanking
   for (const enemy of state.enemies) {
     if (enemy.hp <= 0) continue;
     if (enemy.kind === "shooter") moveShooter(enemy, dt, playerCenter);
+    else if (enemy.kind === "runner") moveRunner(enemy, dt, playerCenter);
     else moveChaser(enemy, dt, playerCenter);
     keepInside(enemy);
   }
+
+  // 2. Kolizje i separacja (Flocking - unikanie nakładania się wrogów)
+  for (let i = 0; i < state.enemies.length; i++) {
+    for (let j = i + 1; j < state.enemies.length; j++) {
+      const e1 = state.enemies[i];
+      const e2 = state.enemies[j];
+      if (e1.hp <= 0 || e2.hp <= 0) continue;
+      const dx = (e2.x + e2.w / 2) - (e1.x + e1.w / 2);
+      const dy = (e2.y + e2.h / 2) - (e1.y + e1.h / 2);
+      const dist = Math.hypot(dx, dy);
+      const minDist = (e1.w + e2.w) * 0.85;
+      if (dist < minDist && dist > 0.01) {
+        const overlap = (minDist - dist) / dist;
+        const pushX = dx * overlap * 50 * dt;
+        const pushY = dy * overlap * 50 * dt;
+        e1.x -= pushX;
+        e1.y -= pushY;
+        e2.x += pushX;
+        e2.y += pushY;
+        keepInside(e1);
+        keepInside(e2);
+      }
+    }
+  }
+
   state.enemies = state.enemies.filter((enemy) => enemy.hp > 0);
 }
 
@@ -1099,6 +1212,21 @@ function drawCone(origin, dir, range, arc, color, alpha) {
   ctx.restore();
 }
 
+function drawThrustBox(origin, dir, length, width, color, alpha) {
+  const angle = Math.atan2(dir.y, dir.x);
+  ctx.save();
+  ctx.translate(origin.x, origin.y);
+  ctx.rotate(angle);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, -width / 2, length, width);
+  ctx.globalAlpha = Math.min(1, alpha + 0.25);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, -width / 2, length, width);
+  ctx.restore();
+}
+
 function drawArrow(x, y, facing, length, fill) {
   const angle = Math.atan2(facing.y, facing.x);
   ctx.save();
@@ -1138,8 +1266,14 @@ function drawPlayerStrike() {
   const strike = state.player.strike;
   if (!strike || strike.duration <= 0) return;
   const fade = clamp(strike.timer / strike.duration, 0, 1);
-  const color = strike.kind === "fork" ? "#d5ecff" : "#ffb15a";
-  drawCone(centerOf(state.player), strike.dir, strike.range, strike.arc, color, 0.2 + fade * 0.4);
+  const origin = centerOf(state.player);
+
+  if (strike.kind === "fork") {
+    drawThrustBox(origin, strike.dir, strike.range, strike.width, "#d5ecff", 0.2 + fade * 0.4);
+  } else {
+    const color = "#ffb15a";
+    drawCone(origin, strike.dir, strike.range, strike.arc, color, 0.2 + fade * 0.4);
+  }
 }
 
 function drawBolts() {
@@ -1199,7 +1333,10 @@ function drawEnemyHpBar(enemy) {
 
 function drawEnemies() {
   for (const enemy of state.enemies) {
-    ctx.fillStyle = enemy.kind === "shooter" ? "#a05cff" : "#e23b3b";
+    if (enemy.kind === "shooter") ctx.fillStyle = "#a05cff";
+    else if (enemy.kind === "runner") ctx.fillStyle = "#3ddc6a";
+    else ctx.fillStyle = "#e23b3b";
+
     ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
     drawEnemyHpBar(enemy);
   }
@@ -1260,13 +1397,11 @@ function updateHud() {
   hud.dashFill.style.width = `${Math.round(clamp(ratio, 0, 1) * 100)}%`;
   hud.dashText.textContent = ready ? "Gotów" : `${player.dashCooldown.toFixed(1)}s`;
 
-  // Run Timer (10:00 countdown)
   const remaining = Math.max(0, CONFIG.runDuration - state.elapsed);
   const mins = Math.floor(remaining / 60);
   const secs = Math.floor(remaining % 60);
   hud.runTimer.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
-  // Active upgrades list
   const activeContainer = hud.activeUpgradesList;
   activeContainer.innerHTML = "";
   const activeEntries = Object.entries(state.stacks);

@@ -9,28 +9,34 @@
 ## 2. Pętla Gry i Balans (10-minutowy Run)
 - **Czas trwania:** Pojedyncza sesja gry (run) trwa maksymalnie **10 minut** (600 sekund). Przetrwanie pełnych 10 minut skutkuje wygraną i ekranem zwycięstwa.
 - **Wymóg walki:** Liczba spawnujących się wrogów oraz ich statystyki (HP i prędkość) płynnie rosną wraz z upływem czasu. Ucieczka bez eliminacji wrogów prowadzi do szybkiego otoczenia i przytłoczenia przez hordę.
-- **Ekran Startowy:** Proste i przejrzyste menu główne z tytułem „Droga Bohatera” oraz przyciskiem „Nowa Gra”, przygotowane strukturalnie pod późniejsze wdrożenie grafik.
-- **Układ Kolumnowy (UI):** Widok podzielony na główny obszar gry (Canvas w środku) oraz panel boczny (Sidebar po prawej stronie) zawierający:
-  - Czas runu (odliczanie do 10:00).
-  - Pasek życia (HP), Poziom oraz doświadczenie (EXP).
-  - Statystyki postaci (STR, DEX, SPD, INT) oraz status uniku.
-  - Informacje o wybranej broni oraz jej statystykach.
-  - Listę aktywnych/wybranych ulepszeń broni i statystyk.
 
-## 3. Początek Gry: Wybór Broni (Poziom 1 - Młodość)
-Przed rozpoczęciem fali gracze wybierają jedną z trzech unikalnych broni:
-1. **Łuk:** Atak dystansowy zbalansowanymi pociskami w kierunku spoglądania.
-2. **Widły:** Atak pchnięciem (wąski, daleki stożek z silnym odepchnięciem).
-3. **Pałka / Maczuga:** Ciężki, wolny atak obszarowy (szeroki stożek o dużych obrażeniach).
+## 3. Sztuczna Inteligencja Tłumu i Kolizje (Flocking & Flanking)
+- **Separacja wrogów (Unikanie nakładania się):** Przeciwnicy nie mogą wchodzić "w siebie". Zaimplementowano siłę odpychania (separation), która wymusza zachowanie osobistego dystansu między jednostkami.
+- **Flankowanie (Otaczanie bohatera):** Wrogowie nie poruszają się idealnie w tym samym punkcie centralnym. Posiadają unikalny offset kątowy (`flankOffset`), co powoduje, że naturalnie rozpraszają się i otaczają gracza z różnych stron.
 
-## 4. Statystyki Bohatera
-- **Życie (HP):** Maksymalna wytrzymałość bohatera.
-- **Siła (STR):** Skaluje bazowe obrażenia wszystkich ataków (procentowy przelicznik: +1% obrażeń na punkt).
-- **Zręczność (DEX):** Skraca czas odnowienia (cooldown) Dasha pod Spacją.
-- **Szybkość (SPD):** Prędkość poruszania się postaci po planszy.
-- **Inteligencja (INT):** Szansa (%) na zadanie obrażeń krytycznych (Krit = 200% obrażeń).
+## 4. Statystyki Broni (Tabelka)
+| Nazwa Broni | Typ Ataku | Obrażenia Bazowe | Zasięgowość / Obszar | Cooldown (Szybkość Ataku) | Opis / Efekt Specjalny |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Łuk** | Dystansowy (Pociski) | 4 | Nielimitowany (Pociski) | ~0.65 s | Wystrzeliwuje szybkie strzały w kierunku spojrzenia. |
+| **Widły** | Pchnięcie (Prostokąt) | 11 | Wąski prostokąt (160 px) | ~0.78 s | Precyzyjne pchnięcie wzdłuż linii z mocnym odepchnięciem. |
+| **Pałka** | Obszarowy (Wąski Stożek) | 10 | Wąski stożek (85 px) | ~1.32 s | Wolny zamach obszarowy o umiarkowanym zasięgu. |
 
-## 5. Pełna Lista Ulepszeń (Upgrades)
+## 5. Statystyki Przeciwników (Tabelka)
+| Nazwa Przeciwnika | Typ AI / Zachowanie | HP Bazowe | Prędkość Ruchu | Obrażenia Ataku | EXP |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Biegun (`Chaser`)** | Podbiega i wykonuje zamach w zwarciu (z sygnalizacją) | 16 | 58 px/s | 2 (wręcz) / 1 (kontakt) | 7 |
+| **Strzelec (`Shooter`)** | Trzyma dystans i strzela pociskami dystansowymi | 9 | 72 px/s | 1 (pocisk / kontakt) | 9 |
+| **Zwinny (`Runner`)** | Szybka szarża, atak z bliska i natychmiastowy odskok | 8 | 98 px/s | 1 (wręcz / kontakt) | 6 |
+
+## 6. Parametry Postaci i Silnika
+- **Bazowa prędkość ruchu bohatera:** 100 px/s (+5 px/s za każdy punkt `SPD`, maks. 340 px/s).
+- **Prędkość Uniku (Dash):** 500 px/s (czas trwania: 0.15 s, dodatkowe klatki nieśmiertelności: 0.06 s).
+- **Odnowienie Uniku (Cooldown):** Bazowo 2.05 s (skracane przez statystykę `DEX`).
+- **Skalowanie obrażeń (Siła `STR`):** Każdy punkt `STR` zwiększa obrażenia wszystkich ataków o 1%.
+- **Szansa na krytyk (Inteligencja `INT`):** 1 punkt `INT` = 1% szansy na cios krytyczny zadający 200% obrażeń.
+- **Czas trwania runu:** 600 sekund (10 minut).
+
+## 7. Pełna Lista Ulepszeń (Upgrades)
 Po zdobyciu poziomu (EXP) gra pauzuje i pozwala wybrać 1 z 3 losowych ulepszeń:
 
 ### Ulepszenia Statystyk:
