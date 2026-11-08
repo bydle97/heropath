@@ -1,30 +1,22 @@
-/**
- * Droga Rycerza — prototyp areny.
+﻿/**
+ * Droga Bohatera — Arena Survival.
  * Czysty JavaScript + Canvas. Bez bibliotek.
  *
  * WASD porusza, strzałki ustawiają jeden z 8 kierunków spojrzenia,
  * spacja robi krótki unik. Broń atakuje sama w stronę spojrzenia.
- * Siła skaluje obrażenia, inteligencja daje szansę na krytyk,
- * zręczność skraca unik, szybkość skraca drogę przez planszę.
+ * 10-minutowy run z narastającą nawałnicą wrogów.
  */
-
-// ---------------------------------------------------------------------------
-// Balans
-// ---------------------------------------------------------------------------
 
 const CONFIG = {
   playerSize: 26,
 
-  // SPD 10 → 150 px/s. Wyżej szybciej, z sufitem na małej arenie.
   speedBase: 100,
   speedPerPoint: 5,
   speedCap: 340,
 
-  // Krótki zryw: 500 * 0.15 ≈ 75 px (wcześniej ok. 230 px).
   dashSpeed: 500,
   dashDuration: 0.15,
   dashIframeExtra: 0.06,
-  // Czas odnowienia = base / (1 + DEX * 0.03), nie krócej niż dashCooldownMin.
   dashCooldownBase: 2.05,
   dashCooldownDex: 0.03,
   dashCooldownMin: 0.4,
@@ -32,8 +24,6 @@ const CONFIG = {
   hurtCooldown: 0.65,
 
   enemySize: 22,
-  spawnInterval: 3.2,
-  minSpawnInterval: 1.8,
   contactDamage: 1,
 
   chaserHp: 16,
@@ -57,15 +47,23 @@ const CONFIG = {
 
   chaserExp: 7,
   shooterExp: 9,
-  // EXP do wyjścia z poziomu: 34 * 1.48^(poziom-1). Rośnie z każdym awansem.
+
   xpBase: 34,
   xpGrowth: 1.48,
+
+  runDuration: 600, // 10 minut
 };
 
 const WEAPON_NAMES = {
   bow: "Łuk",
   fork: "Widły",
   club: "Pałka",
+};
+
+const WEAPON_DESCS = {
+  bow: "Strzela precyzyjnymi pociskami w kierunku spojrzenia.",
+  fork: "Wąski, daleki cios w linii. Mocno odpycha trafionych.",
+  club: "Ciężki, wolny zamach o dużym obszarze i obrażeniach.",
 };
 
 const STARTING_STATS = {
@@ -75,10 +73,6 @@ const STARTING_STATS = {
   spd: 10,
   int: 5,
 };
-
-// ---------------------------------------------------------------------------
-// Ulepszenia — statystyki zawsze, broń tylko dla wybranej
-// ---------------------------------------------------------------------------
 
 const UPGRADE_DEFS = [
   {
@@ -127,7 +121,7 @@ const UPGRADE_DEFS = [
     category: "Statystyka",
     kind: "stat",
     title: "+ Inteligencja",
-    description: "+5 Inteligencji. O tyle punktów procentowych rośnie szansa na krytyk (200% obrażeń).",
+    description: "+5 Inteligencji. Zwiększa szansę na uderzenie krytyczne (200% obrażeń).",
     apply(player) {
       player.int += 5;
     },
@@ -158,7 +152,7 @@ const UPGRADE_DEFS = [
     category: "Broń",
     kind: "weapon",
     title: "Mocniejszy naciąg",
-    description: "Groty zadają wyraźnie wyższe obrażenia.",
+    description: "Groty strzał zadają wyraźnie wyższe obrażenia.",
     apply(player) {
       player.bowPower += 0.28;
     },
@@ -213,10 +207,6 @@ const UPGRADE_DEFS = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// Stan
-// ---------------------------------------------------------------------------
-
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -227,23 +217,25 @@ const hud = {
   expFill: document.getElementById("exp-fill"),
   expText: document.getElementById("exp-text"),
   weaponName: document.getElementById("weapon-name"),
+  weaponDesc: document.getElementById("weapon-desc"),
   str: document.getElementById("str-val"),
   dex: document.getElementById("dex-val"),
   spd: document.getElementById("spd-val"),
   int: document.getElementById("int-val"),
-  statStr: document.getElementById("stat-str"),
-  statDex: document.getElementById("stat-dex"),
-  statSpd: document.getElementById("stat-spd"),
-  statInt: document.getElementById("stat-int"),
-  dashIcon: document.getElementById("dash-icon"),
   dashFill: document.getElementById("dash-fill"),
   dashText: document.getElementById("dash-text"),
+  runTimer: document.getElementById("run-timer"),
+  activeUpgradesList: document.getElementById("active-upgrades-list"),
+  mainMenu: document.getElementById("main-menu"),
+  startGameBtn: document.getElementById("start-game-btn"),
   weaponModal: document.getElementById("weapon-modal"),
   upgradeModal: document.getElementById("upgrade-modal"),
   upgradeLevel: document.getElementById("upgrade-level"),
   upgradeChoices: document.getElementById("upgrade-choices"),
   overlay: document.getElementById("overlay"),
   overlayStats: document.getElementById("overlay-stats"),
+  victoryModal: document.getElementById("victory-modal"),
+  victoryStats: document.getElementById("victory-stats"),
 };
 
 const keys = new Set();
@@ -261,16 +253,12 @@ const state = {
   pendingLevels: 0,
   offered: [],
   stacks: {},
-  // armory — wybór broni, play — walka, upgrade — pauza awansu, dead — koniec
-  phase: "armory",
+  // menu, armory, play, upgrade, dead, victory
+  phase: "menu",
   spawnTimer: 1.1,
   nextKind: "chaser",
   elapsed: 0,
 };
-
-// ---------------------------------------------------------------------------
-// Start
-// ---------------------------------------------------------------------------
 
 function xpRequiredFor(level) {
   return Math.round(CONFIG.xpBase * CONFIG.xpGrowth ** (level - 1));
@@ -308,7 +296,7 @@ function createPlayer() {
   };
 }
 
-function resetGame() {
+function resetToMenu() {
   state.player = createPlayer();
   state.enemies = [];
   state.enemyBullets = [];
@@ -321,14 +309,24 @@ function resetGame() {
   state.pendingLevels = 0;
   state.offered = [];
   state.stacks = {};
-  state.phase = "armory";
+  state.phase = "menu";
   state.spawnTimer = 1.15;
   state.nextKind = "chaser";
   state.elapsed = 0;
-  hud.weaponModal.classList.remove("hidden");
+
+  hud.mainMenu.classList.remove("hidden");
+  hud.weaponModal.classList.add("hidden");
   hud.upgradeModal.classList.add("hidden");
   hud.overlay.classList.add("hidden");
+  hud.victoryModal.classList.add("hidden");
   hud.upgradeChoices.innerHTML = "";
+  updateHud();
+}
+
+function startArmory() {
+  state.phase = "armory";
+  hud.mainMenu.classList.add("hidden");
+  hud.weaponModal.classList.remove("hidden");
   updateHud();
 }
 
@@ -336,16 +334,13 @@ function chooseWeapon(weaponId) {
   if (state.phase !== "armory" || !WEAPON_NAMES[weaponId]) return;
   const player = state.player;
   player.weapon = weaponId;
-  player.attackCooldown = 0.4;
+  player.attackCooldown = 0.5;
   state.phase = "play";
   state.spawnTimer = 1.15;
+  state.elapsed = 0;
   hud.weaponModal.classList.add("hidden");
   updateHud();
 }
-
-// ---------------------------------------------------------------------------
-// Wejście — WASD to ruch, strzałki to spojrzenie
-// ---------------------------------------------------------------------------
 
 const MOVE_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD"]);
 const AIM_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
@@ -361,6 +356,11 @@ window.addEventListener("keydown", (event) => {
 
   if (event.repeat) return;
 
+  if (state.phase === "menu") {
+    if (event.code === "Enter" || event.code === "Space") startArmory();
+    return;
+  }
+
   if (state.phase === "armory") {
     const weapon = { Digit1: "bow", Digit2: "fork", Digit3: "club" }[event.code];
     if (weapon) chooseWeapon(weapon);
@@ -373,8 +373,8 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (state.phase === "dead") {
-    if (event.code === "KeyR") resetGame();
+  if (state.phase === "dead" || state.phase === "victory") {
+    if (event.code === "KeyR" || event.code === "Enter" || event.code === "Space") resetToMenu();
     return;
   }
 
@@ -387,6 +387,10 @@ window.addEventListener("keyup", (event) => {
 
 window.addEventListener("blur", () => {
   keys.clear();
+});
+
+hud.startGameBtn.addEventListener("click", () => {
+  startArmory();
 });
 
 hud.weaponModal.addEventListener("click", (event) => {
@@ -402,10 +406,13 @@ hud.upgradeChoices.addEventListener("click", (event) => {
 });
 
 hud.overlay.addEventListener("click", () => {
-  if (state.phase === "dead") resetGame();
+  if (state.phase === "dead") resetToMenu();
 });
 
-/** Oś z zestawu klawiszy. Przeciwne kierunki się znoszą, skos zostaje. */
+hud.victoryModal.addEventListener("click", () => {
+  if (state.phase === "victory") resetToMenu();
+});
+
 function readAxis(left, right, up, down) {
   let x = 0;
   let y = 0;
@@ -430,10 +437,6 @@ function normalize(x, y) {
   return { x: x / length, y: y / length };
 }
 
-/**
- * Strzałki ustawiają 1 z 8 kierunków.
- * Bez strzałek bohater patrzy tam, dokąd idzie (w uniku — w stronę zrywu).
- */
 function updateFacing(move) {
   const player = state.player;
   const aim = readAimAxis();
@@ -471,10 +474,6 @@ function tryStartDash() {
   player.dashCooldownMax = player.dashCooldown;
 }
 
-// ---------------------------------------------------------------------------
-// Obrażenia, doświadczenie, awans
-// ---------------------------------------------------------------------------
-
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -487,7 +486,6 @@ function rectsOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-/** Siła dodaje procent bazowych obrażeń. Inteligencja to procent szansy na krytyk. */
 function computeDamage(base) {
   const player = state.player;
   const scaled = base * (1 + player.str / 100);
@@ -584,10 +582,23 @@ function endGame() {
   state.phase = "dead";
   state.pendingLevels = 0;
   const weapon = WEAPON_NAMES[state.player.weapon] || "brak";
+  const minutes = Math.floor(state.elapsed / 60);
+  const seconds = Math.floor(state.elapsed % 60);
+  const timeStr = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   hud.overlayStats.textContent =
-    `Poziom ${state.level}   ·   Pokonani: ${state.kills}   ·   Broń: ${weapon}`;
+    `Czas przetrwania: ${timeStr}   ·   Poziom ${state.level}   ·   Pokonani: ${state.kills}   ·   Broń: ${weapon}`;
   hud.upgradeModal.classList.add("hidden");
   hud.overlay.classList.remove("hidden");
+}
+
+function triggerVictory() {
+  state.phase = "victory";
+  state.pendingLevels = 0;
+  const weapon = WEAPON_NAMES[state.player.weapon] || "brak";
+  hud.victoryStats.textContent =
+    `Czas przetrwania: 10:00 / 10:00   ·   Poziom ${state.level}   ·   Pokonani: ${state.kills}   ·   Broń: ${weapon}`;
+  hud.upgradeModal.classList.add("hidden");
+  hud.victoryModal.classList.remove("hidden");
 }
 
 function upgradeText(value, rank) {
@@ -620,7 +631,7 @@ function rollUpgrades() {
 }
 
 function openUpgrade() {
-  if (state.phase === "dead") return;
+  if (state.phase === "dead" || state.phase === "victory") return;
   state.offered = rollUpgrades();
   if (state.offered.length === 0) {
     state.pendingLevels = 0;
@@ -673,16 +684,12 @@ function pickOffered(index) {
   updateHud();
 }
 
-// ---------------------------------------------------------------------------
-// Atak
-// ---------------------------------------------------------------------------
-
 function attackProfile() {
   const player = state.player;
   if (player.weapon === "bow") {
     return {
       kind: "bow",
-      cooldown: 0.32 * player.bowHaste,
+      cooldown: 0.65 * player.bowHaste, // Wolniejszy, zbalansowany atak łukiem
       damage: 4 * player.bowPower,
       volley: player.bowVolley,
     };
@@ -738,7 +745,7 @@ function fireBow(dir, profile) {
   const count = profile.volley;
   const base = Math.atan2(dir.y, dir.x);
   const spread = 0.14;
-  const speed = 560;
+  const speed = 520;
   const size = 8;
 
   for (let i = 0; i < count; i++) {
@@ -812,10 +819,6 @@ function updateFloaters(dt) {
   state.floaters = state.floaters.filter((floater) => floater.life > 0);
 }
 
-// ---------------------------------------------------------------------------
-// Gracz i wrogowie
-// ---------------------------------------------------------------------------
-
 function updatePlayer(dt) {
   const player = state.player;
   const move = readMoveAxis();
@@ -850,7 +853,9 @@ function createEnemy(kind) {
   const size = CONFIG.enemySize;
   const pos = randomEdgeSpawn(size);
   const isShooter = kind === "shooter";
-  const maxHp = isShooter ? CONFIG.shooterHp : CONFIG.chaserHp;
+  const timeProgress = state.elapsed / CONFIG.runDuration;
+  const baseHp = isShooter ? CONFIG.shooterHp : CONFIG.chaserHp;
+  const maxHp = Math.round(baseHp * (1 + timeProgress * 1.8 + (state.level - 1) * 0.2));
 
   return {
     kind: isShooter ? "shooter" : "chaser",
@@ -869,23 +874,25 @@ function createEnemy(kind) {
   };
 }
 
-function maxEnemiesForLevel(level) {
-  return clamp(3 + Math.floor((level - 1) / 2), 3, 5);
+function maxEnemiesForTime(elapsed) {
+  const progress = elapsed / CONFIG.runDuration;
+  return Math.min(50, Math.floor(4 + progress * 42 + (state.level - 1)));
 }
 
-function spawnIntervalForLevel(level) {
-  return Math.max(CONFIG.minSpawnInterval, CONFIG.spawnInterval - (level - 1) * 0.18);
+function spawnIntervalForTime(elapsed) {
+  const progress = clamp(elapsed / CONFIG.runDuration, 0, 1);
+  return Math.max(0.32, 2.7 - progress * 2.35 - (state.level - 1) * 0.04);
 }
 
 function updateSpawning(dt) {
-  if (state.enemies.length >= maxEnemiesForLevel(state.level)) return;
+  if (state.enemies.length >= maxEnemiesForTime(state.elapsed)) return;
   state.spawnTimer -= dt;
   if (state.spawnTimer > 0) return;
 
   const kind = state.nextKind;
   state.nextKind = kind === "chaser" ? "shooter" : "chaser";
   state.enemies.push(createEnemy(kind));
-  state.spawnTimer = spawnIntervalForLevel(state.level);
+  state.spawnTimer = spawnIntervalForTime(state.elapsed);
 }
 
 function playerIsProtected() {
@@ -924,7 +931,8 @@ function moveChaser(enemy, dt, playerCenter) {
     return;
   }
 
-  const speed = CONFIG.chaserSpeed + (state.level - 1) * 4;
+  const timeProgress = state.elapsed / CONFIG.runDuration;
+  const speed = CONFIG.chaserSpeed + timeProgress * 24 + (state.level - 1) * 4;
   enemy.x += (dx / dist) * speed * dt;
   enemy.y += (dy / dist) * speed * dt;
   enemy.aim = { x: dx / dist, y: dy / dist };
@@ -959,7 +967,7 @@ function moveShooter(enemy, dt, playerCenter) {
   enemy.shootTimer -= dt;
   if (enemy.shootTimer <= 0) {
     fireEnemyBullet(enemy);
-    enemy.shootTimer = CONFIG.shooterFireInterval;
+    enemy.shootTimer = Math.max(0.8, CONFIG.shooterFireInterval - (state.elapsed / CONFIG.runDuration));
   }
 }
 
@@ -1033,6 +1041,11 @@ function update(dt) {
   if (state.phase !== "play") return;
 
   state.elapsed += dt;
+  if (state.elapsed >= CONFIG.runDuration) {
+    triggerVictory();
+    return;
+  }
+
   updatePlayer(dt);
   updateAttack(dt);
   updateBolts(dt);
@@ -1050,18 +1063,14 @@ function update(dt) {
   resolveCollisions();
 }
 
-// ---------------------------------------------------------------------------
-// Rysowanie
-// ---------------------------------------------------------------------------
-
 function drawBackground() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.strokeStyle = "#141414";
+  ctx.strokeStyle = "#161619";
   ctx.lineWidth = 1;
-  const step = 40;
   ctx.beginPath();
+  const step = 40;
   for (let x = 0; x <= canvas.width; x += step) {
     ctx.moveTo(x + 0.5, 0);
     ctx.lineTo(x + 0.5, canvas.height);
@@ -1090,7 +1099,6 @@ function drawCone(origin, dir, range, arc, color, alpha) {
   ctx.restore();
 }
 
-/** Strzałka skierowana w prawo, obrócona na jeden z ośmiu kierunków. */
 function drawArrow(x, y, facing, length, fill) {
   const angle = Math.atan2(facing.y, facing.x);
   ctx.save();
@@ -1237,40 +1245,58 @@ function updateHud() {
   const expRatio = state.expToNext > 0 ? clamp(state.exp / state.expToNext, 0, 1) : 0;
   hud.expFill.style.width = `${Math.round(expRatio * 100)}%`;
   hud.expText.textContent = `${Math.floor(state.exp)} / ${state.expToNext}`;
-  hud.weaponName.textContent = WEAPON_NAMES[player.weapon] || "—";
+
+  hud.weaponName.textContent = WEAPON_NAMES[player.weapon] || "Brak";
+  hud.weaponDesc.textContent = WEAPON_DESCS[player.weapon] || "Wybierz broń, aby rozpocząć.";
 
   hud.str.textContent = String(player.str);
   hud.dex.textContent = String(player.dex);
   hud.spd.textContent = String(player.spd);
   hud.int.textContent = String(player.int);
-  hud.statStr.title = `Siła: obrażenia +${player.str}%`;
-  hud.statDex.title = `Zręczność: unik co ${dashCooldownDuration(player.dex).toFixed(2)} s`;
-  hud.statSpd.title = `Szybkość: ${Math.round(moveSpeed(player.spd))} px/s`;
-  hud.statInt.title = `Inteligencja: ${clamp(player.int, 0, 100)}% szansy na krytyk`;
 
   const ready = player.dashCooldown <= 0 && player.dashTimer <= 0;
   const max = player.dashCooldownMax || dashCooldownDuration(player.dex);
   const ratio = ready ? 1 : 1 - player.dashCooldown / max;
   hud.dashFill.style.width = `${Math.round(clamp(ratio, 0, 1) * 100)}%`;
-  hud.dashFill.classList.toggle("ready", ready);
-  hud.dashIcon.classList.toggle("ready", ready);
   hud.dashText.textContent = ready ? "Gotów" : `${player.dashCooldown.toFixed(1)}s`;
-}
 
-// ---------------------------------------------------------------------------
-// Pętla
-// ---------------------------------------------------------------------------
+  // Run Timer (10:00 countdown)
+  const remaining = Math.max(0, CONFIG.runDuration - state.elapsed);
+  const mins = Math.floor(remaining / 60);
+  const secs = Math.floor(remaining % 60);
+  hud.runTimer.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+  // Active upgrades list
+  const activeContainer = hud.activeUpgradesList;
+  activeContainer.innerHTML = "";
+  const activeEntries = Object.entries(state.stacks);
+  if (activeEntries.length === 0) {
+    activeContainer.innerHTML = '<span class="no-upgrades">Brak ulepszeń</span>';
+  } else {
+    activeEntries.forEach(([id, count]) => {
+      const def = UPGRADE_DEFS.find((d) => d.id === id);
+      if (!def) return;
+      const title = typeof def.title === "function" ? def.title(count - 1) : def.title;
+      const item = document.createElement("div");
+      item.className = "upgrade-item";
+      item.innerHTML = `<span>${title}</span><span>poziom ${count}</span>`;
+      activeContainer.appendChild(item);
+    });
+  }
+}
 
 let lastTime = 0;
 
 function frame(now) {
   const dt = Math.min(0.05, (now - lastTime) / 1000 || 0);
   lastTime = now;
-  update(dt);
+  if (state.phase === "play") {
+    update(dt);
+  }
   updateHud();
   render();
   requestAnimationFrame(frame);
 }
 
-resetGame();
+resetToMenu();
 requestAnimationFrame(frame);
