@@ -93,8 +93,8 @@ const MOVE_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD"]);
 const AIM_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
 window.addEventListener("keydown", (event) => {
-  // Obsługa klawisza Ctrl (pauza)
-  if (event.code === "ControlLeft" || event.code === "ControlRight" || event.key === "Control") {
+  // Obsługa klawisza Q (pauza)
+  if (event.code === "KeyQ") {
     event.preventDefault();
     if (state.phase === "play") {
       state.phase = "paused";
