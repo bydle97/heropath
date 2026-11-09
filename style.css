@@ -32,6 +32,22 @@ body {
   justify-content: center;
 }
 
+/* Wskaźnik wersji (Build / Wersja gry) */
+#build-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  background: rgba(18, 11, 7, 0.9);
+  border: 1px solid #d4af37;
+  color: #f7d774;
+  font-family: "Press Start 2P", monospace;
+  font-size: 9px;
+  padding: 4px 8px;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
 #stage {
   position: relative;
   flex-shrink: 0;
@@ -429,4 +445,8 @@ body {
     width: 920px;
     min-height: auto;
   }
+}
+
+#stage {
+  cursor: crosshair;
 }

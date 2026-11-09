@@ -28,11 +28,25 @@ export function readAimAxis() {
 
 export function updateFacing(move) {
   const player = state.player;
+
+  // 1. Strzałki mają pierwszeństwo (celowanie z klawiatury)
   const aim = readAimAxis();
   if (aim) {
     player.facing = aim;
     return;
   }
+
+  // 2. Mysz: bohater patrzy w stronę kursora
+  if (state.mouse && state.mouse.active) {
+    const c = centerOf(player);
+    const toMouse = normalize(state.mouse.x - c.x, state.mouse.y - c.y);
+    if (toMouse) {
+      player.facing = toMouse;
+      return;
+    }
+  }
+
+  // 3. Bez myszy: kierunek uniku / ruchu
   if (player.dashTimer > 0) {
     player.facing = { x: player.dashDir.x, y: player.dashDir.y };
     return;
@@ -108,7 +122,7 @@ export function attackProfile() {
       kind: "fork",
       cooldown: 0.75 * player.forkHaste,
       damage: 11,
-      range: 110 * player.forkReach, // Skrócone pchnięcie
+      range: 110 * player.forkReach,
       width: 22,
       knock: Math.min(140, 100 * player.forkReach),
       active: 0.1,
@@ -119,7 +133,7 @@ export function attackProfile() {
     cooldown: 1.32,
     damage: 10 * player.clubPower,
     range: 82,
-    arc: Math.min(Math.PI * 0.8, Math.PI * 0.40 + player.clubArc), // Jeszcze węższy łuk zamachu
+    arc: Math.min(Math.PI * 0.8, Math.PI * 0.40 + player.clubArc),
     knock: 34,
     active: 0.15,
   };

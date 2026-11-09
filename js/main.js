@@ -1,12 +1,22 @@
-﻿import { CONFIG, WEAPON_NAMES } from './config.js';
+﻿/**
+ * ============================================================================
+ * PLIK: js/main.js (Główny Punkt Wejścia i Pętla Gry - Three.js WebGL)
+ * ============================================================================
+ * 
+ * MINIPORADNIK EDUKACYJNY (Delegacja Zdarzeń w JavaScript):
+ * Zamiast podpinać nasłuchiwacze bezpośrednio pod konkretne elementy, które mogą 
+ * się pojawiać i znikać (np. modale), używamy delegacji zdarzeń (`document.addEventListener("click", ...)`).
+ * Pozwala to skutecznie wychwytywać kliknięcia w dowolne przyciski w grze za pomocą `.closest()`.
+ */
+
+import { CONFIG, WEAPON_NAMES } from './config.js';
 import { state, hud, keys, initEnvironment, createPlayer } from './state.js';
 import { updatePlayer, updateAttack, tryStartDash } from './player.js';
 import { updateSpawning, updateEnemies, hurtPlayer, computeDamage, damageEnemy } from './enemies.js';
 import { render } from './renderer.js';
 import { updateHud, openUpgrade, pickOffered, renderWeaponPreviews } from './ui.js';
+import { loadGameTextures } from './textures.js';
 import { canvas } from './state.js';
-
-// Inicjalizacja referencji HUD po załadowaniu DOM
 
 export function resetToMenu() {
   state.player = createPlayer();
@@ -30,6 +40,7 @@ export function resetToMenu() {
 
   initEnvironment();
 
+  if (hud.loadingModal) hud.loadingModal.classList.add("hidden");
   if (hud.mainMenu) hud.mainMenu.classList.remove("hidden");
   if (hud.weaponModal) hud.weaponModal.classList.add("hidden");
   if (hud.upgradeModal) hud.upgradeModal.classList.add("hidden");
@@ -92,97 +103,81 @@ export function triggerVictory() {
 const MOVE_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD"]);
 const AIM_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
-window.addEventListener("keydown", (event) => {
-  // Obsługa klawisza Q (pauza)
-  if (event.code === "KeyQ") {
-    event.preventDefault();
-    if (state.phase === "play") {
-      state.phase = "paused";
-      updateHud();
-      return;
-    } else if (state.phase === "paused") {
-      state.phase = "play";
-      updateHud();
-      return;
+window.addEventListener("keydown", (e) => {
+  if (MOVE_KEYS.has(e.code) || AIM_KEYS.has(e.code) || e.code === "Space") {
+    keys.add(e.code);
+    if (MOVE_KEYS.has(e.code) || AIM_KEYS.has(e.code)) e.preventDefault();
+    if (e.code === "Space") {
+      e.preventDefault();
+      tryStartDash();
     }
   }
 
-  if (MOVE_KEYS.has(event.code) || AIM_KEYS.has(event.code) || event.code === "Space") {
-    event.preventDefault();
+  if (e.code === "KeyQ") {
+    if (state.phase === "play") {
+      state.phase = "paused";
+    } else if (state.phase === "paused") {
+      state.phase = "play";
+    }
+    updateHud();
   }
 
-  if (MOVE_KEYS.has(event.code) || AIM_KEYS.has(event.code)) {
-    keys.add(event.code);
-  }
-
-  if (event.repeat) return;
-
-  if (state.phase === "menu") {
-    if (event.code === "Enter" || event.code === "Space") startArmory();
-    return;
-  }
-
-  if (state.phase === "armory") {
-    const weapon = { Digit1: "bow", Digit2: "fork", Digit3: "club" }[event.code];
-    if (weapon) chooseWeapon(weapon);
-    return;
+  if (e.code === "KeyR") {
+    if (state.phase === "dead" || state.phase === "victory") {
+      resetToMenu();
+    }
   }
 
   if (state.phase === "upgrade") {
-    const index = { Digit1: 0, Digit2: 1, Digit3: 2 }[event.code];
-    if (index != null) pickOffered(index);
-    return;
+    if (e.code === "Digit1" || e.code === "Numpad1") pickOffered(0);
+    if (e.code === "Digit2" || e.code === "Numpad2") pickOffered(1);
+    if (e.code === "Digit3" || e.code === "Numpad3") pickOffered(2);
   }
 
-  if (state.phase === "dead" || state.phase === "victory") {
-    if (event.code === "KeyR" || event.code === "Enter" || event.code === "Space") resetToMenu();
-    return;
+  if (state.phase === "armory") {
+    if (e.code === "Digit1" || e.code === "Numpad1") chooseWeapon("bow");
+    if (e.code === "Digit2" || e.code === "Numpad2") chooseWeapon("fork");
+    if (e.code === "Digit3" || e.code === "Numpad3") chooseWeapon("club");
   }
-
-  if (event.code === "Space") tryStartDash();
 });
 
-window.addEventListener("keyup", (event) => {
-  keys.delete(event.code);
+window.addEventListener("keyup", (e) => {
+  keys.delete(e.code);
 });
 
-window.addEventListener("blur", () => {
-  keys.clear();
-});
-
-if (hud.startGameBtn) {
-  hud.startGameBtn.addEventListener("click", () => {
+// Robustyjna delegacja zdarzeń kliknięć na poziomie całego dokumentu
+document.addEventListener("click", (e) => {
+  // Przycisk "Nowa Gra" w menu głównym
+  if (e.target.closest("#start-game-btn")) {
     startArmory();
-  });
-}
+    return;
+  }
 
-if (hud.weaponModal) {
-  hud.weaponModal.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-weapon]");
-    if (!button) return;
-    chooseWeapon(button.dataset.weapon);
-  });
-}
+  // Wybór broni w zbrojowni
+  const weaponBtn = e.target.closest("[data-weapon]");
+  if (weaponBtn && state.phase === "armory") {
+    chooseWeapon(weaponBtn.dataset.weapon);
+    return;
+  }
 
-if (hud.upgradeChoices) {
-  hud.upgradeChoices.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-index]");
-    if (!button) return;
-    pickOffered(Number(button.dataset.index));
-  });
-}
+  // Wybór ulepszenia
+  const upgradeBtn = e.target.closest("button[data-index]");
+  if (upgradeBtn && state.phase === "upgrade") {
+    pickOffered(Number(upgradeBtn.dataset.index));
+    return;
+  }
 
-if (hud.overlay) {
-  hud.overlay.addEventListener("click", () => {
-    if (state.phase === "dead") resetToMenu();
-  });
-}
+  // Kliknięcie w ekran końca gry (dead / victory) powracające do menu
+  if (e.target.closest("#overlay") && state.phase === "dead") {
+    resetToMenu();
+    return;
+  }
 
-if (hud.victoryModal) {
-  hud.victoryModal.addEventListener("click", () => {
-    if (state.phase === "victory") resetToMenu();
-  });
-}
+  if (e.target.closest("#victory-modal") && state.phase === "victory") {
+    resetToMenu();
+    return;
+  }
+});
 
 function updateBolts(dt) {
   for (const bolt of state.bolts) {
@@ -291,6 +286,7 @@ function update(dt) {
   updateEnemies(dt);
   updateEnemyBullets(dt);
   resolveCollisions();
+  if (state.phase === "play" && state.player.hp <= 0) endGame();
 }
 
 let lastTime = 0;
@@ -306,5 +302,22 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-resetToMenu();
-requestAnimationFrame(frame);
+async function initGame() {
+  state.phase = "loading";
+  if (hud.loadingModal) hud.loadingModal.classList.remove("hidden");
+
+  try {
+    await loadGameTextures((percent) => {
+      if (hud.loadingFill) hud.loadingFill.style.width = `${percent}%`;
+      if (hud.loadingFill) hud.loadingFill.style.width = `${percent}%`;
+      if (hud.loadingText) hud.loadingText.textContent = `Ładowanie zasobów Three.js: ${percent}%`;
+    });
+  } catch (err) {
+    console.error("Błąd ładowania tekstur Three.js:", err);
+  }
+
+  resetToMenu();
+  requestAnimationFrame(frame);
+}
+
+initGame();

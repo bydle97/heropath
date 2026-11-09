@@ -1,35 +1,54 @@
-﻿import { CONFIG, STARTING_STATS } from './config.js';
+﻿/**
+ * ============================================================================
+ * PLIK: js/state.js (Zarządzanie Stanem Gry i Środowiskiem - Gettery HUD)
+ * ============================================================================
+ *
+ * MINIPORADNIK EDUKACYJNY (JavaScript - Gettery w obiektach):
+ * Używanie getterów (`get nazwa() { return ... }`) w obiekcie `hud` sprawia,
+ * że elementy DOM są pobierane dynamicznie w momencie odczytu, a nie jednorazowo
+ * przy starcie modułu. Zapobiega to błędom, gdy skrypt ładuje się przed DOM.
+ *
+ * MYSZ: pozycja kursora jest przeliczana na współrzędne ŚWIATA gry (920x620),
+ * niezależnie od tego, jak canvas jest skalowany na ekranie.
+ *
+ * UWAGA: `canvas` to stały obiekt z wymiarami ŚWIATA gry (a nie element DOM).
+ */
 
-export const canvas = document.getElementById("game");
-export const ctx = canvas.getContext("2d");
+import { CONFIG, STARTING_STATS } from './config.js';
+import { initThreeEnvironment, WORLD_W, WORLD_H } from './renderer.js';
+
+export const canvas = { width: WORLD_W, height: WORLD_H };
 
 export const hud = {
-  hpFill: document.getElementById("hp-fill"),
-  hpText: document.getElementById("hp-text"),
-  level: document.getElementById("level"),
-  expFill: document.getElementById("exp-fill"),
-  expText: document.getElementById("exp-text"),
-  weaponName: document.getElementById("weapon-name"),
-  weaponDesc: document.getElementById("weapon-desc"),
-  str: document.getElementById("str-val"),
-  dex: document.getElementById("dex-val"),
-  spd: document.getElementById("spd-val"),
-  int: document.getElementById("int-val"),
-  dashFill: document.getElementById("dash-fill"),
-  dashText: document.getElementById("dash-text"),
-  runTimer: document.getElementById("run-timer"),
-  activeUpgradesList: document.getElementById("active-upgrades-list"),
-  mainMenu: document.getElementById("main-menu"),
-  startGameBtn: document.getElementById("start-game-btn"),
-  weaponModal: document.getElementById("weapon-modal"),
-  upgradeModal: document.getElementById("upgrade-modal"),
-  upgradeLevel: document.getElementById("upgrade-level"),
-  upgradeChoices: document.getElementById("upgrade-choices"),
-  overlay: document.getElementById("overlay"),
-  overlayStats: document.getElementById("overlay-stats"),
-  victoryModal: document.getElementById("victory-modal"),
-  victoryStats: document.getElementById("victory-stats"),
-  pauseModal: document.getElementById("pause-modal"),
+  get hpFill() { return document.getElementById("hp-fill"); },
+  get hpText() { return document.getElementById("hp-text"); },
+  get level() { return document.getElementById("level"); },
+  get expFill() { return document.getElementById("exp-fill"); },
+  get expText() { return document.getElementById("exp-text"); },
+  get weaponName() { return document.getElementById("weapon-name"); },
+  get weaponDesc() { return document.getElementById("weapon-desc"); },
+  get str() { return document.getElementById("str-val"); },
+  get dex() { return document.getElementById("dex-val"); },
+  get spd() { return document.getElementById("spd-val"); },
+  get int() { return document.getElementById("int-val"); },
+  get dashFill() { return document.getElementById("dash-fill"); },
+  get dashText() { return document.getElementById("dash-text"); },
+  get runTimer() { return document.getElementById("run-timer"); },
+  get activeUpgradesList() { return document.getElementById("active-upgrades-list"); },
+  get mainMenu() { return document.getElementById("main-menu"); },
+  get startGameBtn() { return document.getElementById("start-game-btn"); },
+  get weaponModal() { return document.getElementById("weapon-modal"); },
+  get upgradeModal() { return document.getElementById("upgrade-modal"); },
+  get upgradeLevel() { return document.getElementById("upgrade-level"); },
+  get upgradeChoices() { return document.getElementById("upgrade-choices"); },
+  get overlay() { return document.getElementById("overlay"); },
+  get overlayStats() { return document.getElementById("overlay-stats"); },
+  get victoryModal() { return document.getElementById("victory-modal"); },
+  get victoryStats() { return document.getElementById("victory-stats"); },
+  get pauseModal() { return document.getElementById("pause-modal"); },
+  get loadingModal() { return document.getElementById("loading-modal"); },
+  get loadingText() { return document.getElementById("loading-text"); },
+  get loadingFill() { return document.getElementById("loading-fill"); },
 };
 
 export const keys = new Set();
@@ -50,13 +69,25 @@ export const state = {
   pendingLevels: 0,
   offered: [],
   stacks: {},
-  phase: "menu",
+  phase: "loading",
   spawnTimer: 1.1,
   nextKind: "chaser",
   elapsed: 0,
   shakeTimer: 0,
   shakeMagnitude: 0,
+  // Pozycja kursora w współrzędnych świata gry; active = mysz już się poruszyła
+  mouse: { x: WORLD_W / 2, y: WORLD_H / 2, active: false },
 };
+
+// Śledzenie myszy (na oknie, więc działa też gdy kursor jest nad modalem)
+const gameCanvasEl = document.getElementById("game");
+window.addEventListener("mousemove", (e) => {
+  const rect = gameCanvasEl.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  state.mouse.x = (e.clientX - rect.left) * (WORLD_W / rect.width);
+  state.mouse.y = (e.clientY - rect.top) * (WORLD_H / rect.height);
+  state.mouse.active = true;
+});
 
 export function initEnvironment() {
   state.dirtPatches = [];
@@ -75,6 +106,7 @@ export function initEnvironment() {
       y: Math.random() * canvas.height,
     });
   }
+  initThreeEnvironment();
 }
 
 export function createPlayer() {
